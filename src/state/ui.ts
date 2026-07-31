@@ -1,0 +1,40 @@
+import { createStore, useStore } from "../lib/store"
+
+export type Screen = "board" | "launch" | "orbit"
+
+interface UIState {
+  screen: Screen
+  selected: string | null
+  paletteOpen: boolean
+  qrOpen: boolean
+}
+
+const ui = createStore<UIState>({
+  screen: "board",
+  selected: null,
+  paletteOpen: false,
+  qrOpen: false,
+})
+
+export const useUI = () => useStore(ui)
+
+export const setScreen = (screen: Screen) => ui.set((s) => ({ ...s, screen }))
+export const select = (selected: string | null) => ui.set((s) => ({ ...s, selected }))
+export const setPalette = (paletteOpen: boolean) => ui.set((s) => ({ ...s, paletteOpen }))
+export const setQr = (qrOpen: boolean) => ui.set((s) => ({ ...s, qrOpen }))
+
+export function moveSelection(names: string[], delta: number) {
+  ui.set((s) => {
+    if (names.length === 0) return s
+    const idx = s.selected ? names.indexOf(s.selected) : -1
+    const next = (idx + delta + names.length) % names.length
+    return { ...s, selected: names[next]! }
+  })
+}
+
+export function ensureSelection(names: string[]) {
+  ui.set((s) => {
+    if (s.selected && names.includes(s.selected)) return s
+    return { ...s, selected: names[0] ?? null }
+  })
+}

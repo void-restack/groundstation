@@ -1,0 +1,36 @@
+import { TextAttributes } from "@opentui/core"
+import { clockLocal, clockUTC } from "../lib/format"
+import { useClock } from "../state/clock"
+import { useProject } from "../state/fleet"
+import { glyph, palette } from "../theme"
+
+export function TopBar({ fleetSize }: { fleetSize: number }) {
+  useClock()
+  const project = useProject()
+  const now = new Date()
+  return (
+    <box
+      flexDirection="row"
+      justifyContent="space-between"
+      paddingLeft={1}
+      paddingRight={1}
+      backgroundColor={palette.panel}
+    >
+      <box flexDirection="row">
+        <text fg={palette.beacon} attributes={TextAttributes.BOLD}>
+          G
+        </text>
+        <text fg={palette.starlight} attributes={TextAttributes.BOLD}>
+          ROUNDSTATION
+        </text>
+        <text fg={palette.static}> {glyph.sep} fleet of {fleetSize}</text>
+      </box>
+      <text fg={palette.static}>{project || "…"}</text>
+      <box flexDirection="row" gap={1}>
+        <text fg={palette.downlink}>{clockUTC(now)} UTC</text>
+        <text fg={palette.hairline}>{glyph.sep}</text>
+        <text fg={palette.static}>{clockLocal(now)}</text>
+      </box>
+    </box>
+  )
+}

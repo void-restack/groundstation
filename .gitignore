@@ -1,0 +1,6 @@
+node_modules/
+gnd
+gnd-*
+*.log
+.DS_Store
+dist/
