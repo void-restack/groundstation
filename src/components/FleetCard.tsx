@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import type { Server } from "../domain"
-import { palette } from "../theme"
+import { glyph, palette } from "../theme"
 import { StatusLamp } from "./StatusLamp"
 
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s.padEnd(n))
@@ -18,7 +18,8 @@ export function FleetCard({ server, selected }: { server: Server; selected: bool
         {pad(server.name, 16)}
       </text>
       <text fg={palette.static}> {pad(server.flightCode, 6)} </text>
-      <text fg={palette.hairline}>{pad(server.machineType, 12)}</text>
+      <text fg={palette.hairline}>{pad(server.machineType, 11)}</text>
+      <text fg={palette.downlink}>{server.hardened === "hardened" ? glyph.hardened : " "}</text>
     </box>
   )
 }

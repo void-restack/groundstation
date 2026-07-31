@@ -9,20 +9,18 @@ import { glyph, palette } from "../theme"
 
 type Stage = "form" | "preflight" | "ignition"
 
-interface Field {
-  key: keyof Omit<LaunchSpec, "imageProject">
-  label: string
-  fallback: string
-}
-
-const FIELDS: Field[] = [
-  { key: "name", label: "NAME", fallback: "" },
-  { key: "zone", label: "ZONE", fallback: "us-central1-a" },
-  { key: "machineType", label: "MACHINE", fallback: "e2-micro" },
-  { key: "imageFamily", label: "IMAGE", fallback: "debian-12" },
+const ZONES = [
+  "us-central1-a", "us-central1-b", "us-central1-c", "us-east1-b", "us-west1-a",
+  "europe-west1-b", "europe-west4-a", "asia-south1-a", "asia-south1-b", "asia-south1-c",
+  "asia-southeast1-a", "asia-northeast1-a",
 ]
-
-const IMAGE_PROJECT = "debian-cloud"
+const MACHINES = ["e2-micro", "e2-small", "e2-medium", "e2-standard-2", "e2-standard-4", "n2-standard-2", "n2-standard-4"]
+const IMAGES = [
+  { label: "debian-12", family: "debian-12", project: "debian-cloud" },
+  { label: "debian-11", family: "debian-11", project: "debian-cloud" },
+  { label: "ubuntu-22.04-lts", family: "ubuntu-2204-lts", project: "ubuntu-os-cloud" },
+  { label: "ubuntu-24.04-lts", family: "ubuntu-2404-lts", project: "ubuntu-os-cloud" },
+]
 
 function stepGlyph(step: LaunchStep, frame: number): { icon: string; color: string } {
   switch (step.state) {
@@ -34,8 +32,6 @@ function stepGlyph(step: LaunchStep, frame: number): { icon: string; color: stri
       return { icon: glyph.stepDone, color: palette.beacon }
     case "failed":
       return { icon: glyph.stepDone, color: palette.flare }
-    case "skipped":
-      return { icon: glyph.stepPending, color: palette.static }
     default:
       return { icon: glyph.stepPending, color: palette.static }
   }
@@ -51,9 +47,7 @@ function StepRow({ step, frame }: { step: LaunchStep; frame: number }) {
       {step.durationMs !== null && step.state !== "failed" ? (
         <text fg={palette.hairline}>{duration(step.durationMs)}</text>
       ) : null}
-      {step.state === "failed" && step.detail ? (
-        <text fg={palette.flare}>{step.detail}</text>
-      ) : null}
+      {step.state === "failed" && step.detail ? <text fg={palette.flare}>{step.detail}</text> : null}
     </box>
   )
 }
@@ -79,19 +73,11 @@ function Ignition({ spec }: { spec: LaunchSpec }) {
         <text fg={tColor}>IGNITION</text>
         <text fg={palette.hairline}>{glyph.sep}</text>
         <text fg={tColor}>{tLabel}</text>
-        <text fg={palette.static}>
-          {glyph.sep} {spec.name} → {spec.zone}
-        </text>
+        <text fg={palette.static}>{glyph.sep} {spec.name} → {spec.zone}</text>
       </box>
 
       <box flexDirection="row" flexGrow={1} gap={1}>
-        <box
-          width={44}
-          border
-          borderStyle="rounded"
-          borderColor={palette.hairline}
-          title=" CHECKLIST "
-        >
+        <box width={44} border borderStyle="rounded" borderColor={palette.hairline} title=" CHECKLIST ">
           <scrollbox flexGrow={1} stickyScroll stickyStart="bottom" paddingLeft={1} paddingRight={1}>
             {steps.map((s, i) => (
               <StepRow key={i} step={s} frame={frame} />
@@ -99,18 +85,10 @@ function Ignition({ spec }: { spec: LaunchSpec }) {
           </scrollbox>
         </box>
 
-        <box
-          flexGrow={1}
-          border
-          borderStyle="rounded"
-          borderColor={palette.hairline}
-          title=" DOWNLINK "
-        >
+        <box flexGrow={1} border borderStyle="rounded" borderColor={palette.hairline} title=" DOWNLINK ">
           <scrollbox flexGrow={1} stickyScroll stickyStart="bottom" paddingLeft={1} paddingRight={1}>
             {log.map((line, i) => (
-              <text key={i} fg={palette.static}>
-                {line}
-              </text>
+              <text key={i} fg={palette.static}>{line}</text>
             ))}
           </scrollbox>
         </box>
@@ -125,50 +103,69 @@ function Ignition({ spec }: { spec: LaunchSpec }) {
   )
 }
 
-function FormRow({
-  field,
+function Field({
+  label,
   focused,
-  onInput,
+  children,
 }: {
-  field: Field
+  label: string
   focused: boolean
-  onInput: (v: string) => void
+  children: React.ReactNode
 }) {
   return (
     <box flexDirection="row" gap={1} alignItems="center">
-      <text fg={focused ? palette.downlink : palette.static}>{field.label.padEnd(9)}</text>
+      <text fg={focused ? palette.downlink : palette.static}>{label.padEnd(9)}</text>
       <box
-        width={40}
+        width={44}
         height={1}
         backgroundColor={focused ? palette.raised : palette.panel}
         paddingLeft={1}
+        paddingRight={1}
+        flexDirection="row"
+        justifyContent="space-between"
       >
-        <input
-          focused={focused}
-          placeholder={field.fallback ? `${field.fallback} (default)` : "required"}
-          onInput={onInput}
-        />
+        {children}
       </box>
     </box>
+  )
+}
+
+function SelectField({ label, value, focused }: { label: string; value: string; focused: boolean }) {
+  return (
+    <Field label={label} focused={focused}>
+      <text fg={focused ? palette.beacon : palette.hairline}>◂</text>
+      <text fg={palette.starlight}>{value}</text>
+      <text fg={focused ? palette.beacon : palette.hairline}>▸</text>
+    </Field>
   )
 }
 
 export function Launch() {
   const [stage, setStage] = useState<Stage>("form")
   const [focus, setFocus] = useState(0)
-  const [values, setValues] = useState<Record<string, string>>({})
+  const [name, setName] = useState("")
+  const [zoneIdx, setZoneIdx] = useState(0)
+  const [machineIdx, setMachineIdx] = useState(0)
+  const [imageIdx, setImageIdx] = useState(0)
 
+  const image = IMAGES[imageIdx]!
   const buildSpec = (): LaunchSpec => ({
-    name: (values.name ?? "").trim(),
-    zone: (values.zone ?? "").trim() || "us-central1-a",
-    machineType: (values.machineType ?? "").trim() || "e2-micro",
-    imageFamily: (values.imageFamily ?? "").trim() || "debian-12",
-    imageProject: IMAGE_PROJECT,
+    name: name.trim(),
+    zone: ZONES[zoneIdx]!,
+    machineType: MACHINES[machineIdx]!,
+    imageFamily: image.family,
+    imageProject: image.project,
   })
 
   const back = () => {
     resetLaunch()
     setScreen("board")
+  }
+
+  const cycle = (dir: number) => {
+    if (focus === 1) setZoneIdx((i) => (i + dir + ZONES.length) % ZONES.length)
+    else if (focus === 2) setMachineIdx((i) => (i + dir + MACHINES.length) % MACHINES.length)
+    else if (focus === 3) setImageIdx((i) => (i + dir + IMAGES.length) % IMAGES.length)
   }
 
   useKeyboard((key) => {
@@ -179,12 +176,11 @@ export function Launch() {
     }
     if (key.name === "escape") return stage === "preflight" ? setStage("form") : back()
     if (stage === "form") {
-      if (key.name === "tab" || key.name === "down") return setFocus((f) => (f + 1) % FIELDS.length)
-      if (key.name === "up") return setFocus((f) => (f - 1 + FIELDS.length) % FIELDS.length)
-      if (key.name === "return") {
-        if (!buildSpec().name) return
-        return setStage("preflight")
-      }
+      if (key.name === "tab" || key.name === "down") return setFocus((f) => (f + 1) % 4)
+      if (key.name === "up") return setFocus((f) => (f - 1 + 4) % 4)
+      if (key.name === "return") return name.trim() ? setStage("preflight") : undefined
+      if (focus > 0 && (key.name === "left" || key.name === "right")) return cycle(key.name === "right" ? 1 : -1)
+      return
     }
     if (stage === "preflight" && key.name === "return") return setStage("ignition")
   })
@@ -199,28 +195,19 @@ export function Launch() {
 
   const spec = buildSpec()
   return (
-    <box
-      flexDirection="column"
-      width="100%"
-      height="100%"
-      padding={2}
-      gap={1}
-      backgroundColor={palette.void}
-    >
+    <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.void}>
       <text fg={palette.beacon}>LAUNCH SEQUENCE {glyph.sep} {stage === "form" ? "FLIGHT PLAN" : "PRE-FLIGHT"}</text>
 
       {stage === "form" ? (
         <box flexDirection="column" gap={1} marginTop={1}>
-          {FIELDS.map((f, i) => (
-            <FormRow
-              key={f.key}
-              field={f}
-              focused={focus === i}
-              onInput={(v) => setValues((prev) => ({ ...prev, [f.key]: v }))}
-            />
-          ))}
+          <Field label="NAME" focused={focus === 0}>
+            <input focused={focus === 0} placeholder="required" onInput={setName} />
+          </Field>
+          <SelectField label="ZONE" value={ZONES[zoneIdx]!} focused={focus === 1} />
+          <SelectField label="MACHINE" value={MACHINES[machineIdx]!} focused={focus === 2} />
+          <SelectField label="IMAGE" value={image.label} focused={focus === 3} />
           <text fg={palette.static} marginTop={1}>
-            ↑↓/tab move {glyph.sep} enter continue {glyph.sep} esc abort
+            ↑↓/tab move {glyph.sep} ◂ ▸ change {glyph.sep} enter continue {glyph.sep} esc abort
           </text>
         </box>
       ) : (
