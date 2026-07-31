@@ -6,14 +6,12 @@ interface UIState {
   screen: Screen
   selected: string | null
   paletteOpen: boolean
-  qrOpen: boolean
 }
 
 const ui = createStore<UIState>({
   screen: "board",
   selected: null,
   paletteOpen: false,
-  qrOpen: false,
 })
 
 export const useUI = () => useStore(ui)
@@ -21,7 +19,6 @@ export const useUI = () => useStore(ui)
 export const setScreen = (screen: Screen) => ui.set((s) => ({ ...s, screen }))
 export const select = (selected: string | null) => ui.set((s) => ({ ...s, selected }))
 export const setPalette = (paletteOpen: boolean) => ui.set((s) => ({ ...s, paletteOpen }))
-export const setQr = (qrOpen: boolean) => ui.set((s) => ({ ...s, qrOpen }))
 
 export function moveSelection(names: string[], delta: number) {
   ui.set((s) => {

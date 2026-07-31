@@ -1,5 +1,5 @@
 import { config } from "../config"
-import type { FleetEvent, HardenedState, Server } from "../domain"
+import type { FleetEvent, HardenedState, Server, ServerStatus } from "../domain"
 import { currentProject, fetchFleet } from "../adapters/gcloud"
 import { probeHardened } from "../adapters/ssh"
 import { createStore, useStore } from "../lib/store"
@@ -54,9 +54,33 @@ async function probeFleet(servers: Server[]) {
   probing = false
 }
 
+let prevStatus: Map<string, { status: ServerStatus; name: string }> | null = null
+
+function diffAndLog(servers: Server[]) {
+  const next = new Map(servers.map((s) => [s.id, { status: s.status, name: s.name }]))
+  if (prevStatus === null) {
+    prevStatus = next
+    return
+  }
+  for (const s of servers) {
+    const prev = prevStatus.get(s.id)
+    if (!prev) {
+      logEvent({ server: s.name, level: "nominal", message: "vessel appeared" })
+    } else if (prev.status !== s.status) {
+      const level = s.status === "RUNNING" ? "nominal" : s.status === "TERMINATED" ? "flare" : "caution"
+      logEvent({ server: s.name, level, message: `${prev.status.toLowerCase()} → ${s.status.toLowerCase()}` })
+    }
+  }
+  for (const [id, prev] of prevStatus) {
+    if (!next.has(id)) logEvent({ server: prev.name, level: "caution", message: "vessel gone" })
+  }
+  prevStatus = next
+}
+
 export async function refreshFleet() {
   try {
     const servers = applyHardened(await fetchFleet())
+    diffAndLog(servers)
     fleet.set({ servers, loading: false, error: null, lastSync: new Date() })
     void probeFleet(servers)
   } catch (err) {

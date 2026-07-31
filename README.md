@@ -22,7 +22,6 @@ real [btop](https://github.com/aristocratos/btop) `.theme` files.
 - **Orbit** — a rotating ASCII Earth with a day/night terminator and health-colored region markers,
   beside a region breakdown that warns when too much of the fleet shares one region.
 - **Command palette** — `Ctrl-K` / `/` fuzzy launcher for every action.
-- **QR handoff** — `Q` renders the selected server's SSH command as a QR code to open from your phone.
 - **Uplink** — `S` drops you into an SSH session and restores the console on exit.
 - **Serve over SSH** — run the whole dashboard as an SSH server, reachable from any terminal.
 - **btop theming** — reads btop `.theme` files, so the palette and meter gradients match your setup.
@@ -50,10 +49,9 @@ bun run compile    # → a single self-contained binary: ./gnd
 | `U` | Update all — constellation sweep |
 | `S` | Uplink (SSH into the selected vessel) |
 | `O` | Orbit view |
-| `Q` | QR handoff |
 | `M` | Mute / unmute sound cues |
 | `Ctrl-K` / `/` | Command palette |
-| `Ctrl-C` | Quit |
+| `Q` / `Ctrl-C` | Quit |
 
 ## Theming
 

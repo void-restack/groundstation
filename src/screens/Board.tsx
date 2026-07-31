@@ -10,7 +10,7 @@ import { Ticker } from "../components/Ticker"
 import { TopBar } from "../components/TopBar"
 import { logEvent, refreshFleet, useEvents, useFleet } from "../state/fleet"
 import { updateAll } from "../state/ops"
-import { ensureSelection, moveSelection, setPalette, setQr, setScreen, useUI } from "../state/ui"
+import { ensureSelection, moveSelection, setPalette, setScreen, useUI } from "../state/ui"
 import { palette } from "../theme"
 
 const HINTS = [
@@ -19,13 +19,13 @@ const HINTS = [
   { key: "U", label: "pdate all" },
   { key: "S", label: "sh" },
   { key: "O", label: "rbit" },
-  { key: "Q", label: "R handoff" },
   { key: "/", label: "command" },
+  { key: "Q", label: "uit" },
 ]
 
 export function Board() {
   const { servers, loading, error } = useFleet()
-  const { selected, paletteOpen, qrOpen } = useUI()
+  const { selected, paletteOpen } = useUI()
   const events = useEvents()
   const renderer = useRenderer()
 
@@ -37,7 +37,7 @@ export function Board() {
   }, [names.join(",")])
 
   useKeyboard((key) => {
-    if (paletteOpen || qrOpen) return
+    if (paletteOpen) return
     if (key.ctrl && key.name === "k") return setPalette(true)
     if (key.sequence === "/") return setPalette(true)
     switch (key.name) {
@@ -60,8 +60,7 @@ export function Board() {
         }
         return
       case "q":
-        if (current?.externalIp) setQr(true)
-        return
+        return renderer.destroy()
       case "m": {
         const muted = toggleMute()
         logEvent({ server: null, level: "info", message: muted ? "audio muted" : "audio on" })
