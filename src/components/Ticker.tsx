@@ -16,8 +16,9 @@ export function Ticker({ events }: { events: FleetEvent[] }) {
       border
       borderStyle="rounded"
       borderColor={palette.hairline}
-      title=" EVENT TICKER "
-      titleAlignment="center"
+      title="⁴ TICKER"
+      titleAlignment="left"
+      titleColor={palette.static}
       flexDirection="column"
     >
       <scrollbox flexGrow={1} paddingLeft={1} paddingRight={1}>

@@ -4,8 +4,8 @@ import { uplink } from "../adapters/ssh"
 import { toggleMute } from "../audio/cues"
 import { FleetRail } from "../components/FleetRail"
 import { Glass } from "../components/Glass"
-import { HealthHorizon } from "../components/HealthHorizon"
 import { KeyStrip } from "../components/KeyStrip"
+import { Overview } from "../components/Overview"
 import { Ticker } from "../components/Ticker"
 import { TopBar } from "../components/TopBar"
 import { logEvent, refreshFleet, useEvents, useFleet } from "../state/fleet"
@@ -73,7 +73,7 @@ export function Board() {
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={palette.void}>
       <TopBar fleetSize={servers.length} />
-      <HealthHorizon servers={servers} />
+      <Overview servers={servers} />
       {error ? (
         <text fg={palette.flare}> {error}</text>
       ) : null}

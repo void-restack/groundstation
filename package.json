@@ -20,7 +20,6 @@
     "@opentui/qrcode": "^0.4.5",
     "@opentui/react": "^0.4.5",
     "@opentui/ssh": "^0.4.5",
-    "@opentui/three": "^0.4.5",
     "react": "^19.2.0"
   },
   "devDependencies": {

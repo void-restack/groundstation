@@ -14,9 +14,10 @@ export function FleetRail({
       width={34}
       border
       borderStyle="rounded"
-      borderColor={palette.hairline}
-      title=" FLEET "
-      titleAlignment="center"
+      borderColor={palette.downlink}
+      title="² FLEET"
+      titleAlignment="left"
+      titleColor={palette.downlink}
       flexDirection="column"
     >
       <scrollbox flexGrow={1} stickyScroll={false}>

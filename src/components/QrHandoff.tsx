@@ -33,7 +33,7 @@ export function QrHandoff({ server }: { server: Server }) {
       <text fg={palette.starlight}>{server.name}</text>
       {command ? (
         <>
-          <qr-code content={command} quietZone={2} scale={1} fit="contain" />
+          <qr-code content={command} quietZone={4} scale={1} fit="contain" />
           <text fg={palette.static}>scan to uplink from your phone</text>
         </>
       ) : (

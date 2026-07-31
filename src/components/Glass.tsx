@@ -25,8 +25,9 @@ export function Glass({ server }: { server: Server | null }) {
         border
         borderStyle="rounded"
         borderColor={palette.hairline}
-        title=" THE GLASS "
-        titleAlignment="center"
+        title="³ THE GLASS"
+        titleAlignment="left"
+        titleColor={palette.static}
         alignItems="center"
         justifyContent="center"
       >
@@ -43,10 +44,11 @@ export function Glass({ server }: { server: Server | null }) {
     <box
       flexGrow={1}
       border
-      borderStyle="double"
-      borderColor={palette.downlink}
-      title=" THE GLASS "
-      titleAlignment="center"
+      borderStyle="rounded"
+      borderColor={palette.hairline}
+      title="³ THE GLASS"
+      titleAlignment="left"
+      titleColor={palette.static}
       padding={1}
       flexDirection="column"
       gap={1}

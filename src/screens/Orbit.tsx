@@ -1,11 +1,10 @@
 import { useKeyboard } from "@opentui/react"
-import { ErrorBoundary } from "../components/ErrorBoundary"
+import { GlobeAscii } from "../components/GlobeAscii"
 import { StatusLamp } from "../components/StatusLamp"
 import type { Server } from "../domain"
 import { flightCode } from "../lib/format"
 import { useFleet } from "../state/fleet"
 import { setScreen } from "../state/ui"
-import { Globe } from "../three/Globe"
 import { glyph, palette } from "../theme"
 
 function groupByRegion(servers: Server[]): Map<string, Server[]> {
@@ -47,15 +46,7 @@ export function Orbit() {
           title=" GLOBE "
           titleAlignment="center"
         >
-          <ErrorBoundary
-            fallback={
-              <box alignItems="center" justifyContent="center" flexGrow={1}>
-                <text fg={palette.static}>globe unavailable (no WebGPU)</text>
-              </box>
-            }
-          >
-            <Globe servers={servers} />
-          </ErrorBoundary>
+          <GlobeAscii servers={servers} />
         </box>
 
         <box
