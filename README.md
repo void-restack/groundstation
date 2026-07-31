@@ -14,10 +14,14 @@ Built with [OpenTUI](https://github.com/sst/opentui) + React on [Bun](https://bu
   (`us-central1-a` → `USC1·A`), per-vessel telemetry, and an event ticker.
 - **Launch sequence** — provision a new server through a flight-plan form, a pre-flight manifest,
   and a live `T-minus` countdown that streams the real Ansible run task-by-task.
-- **Orbit** — servers grouped by region, with a correlated-failure warning when too many share one.
+- **Orbit** — a rotating WebGPU wireframe globe with health-colored region markers, plus servers
+  grouped by region and a correlated-failure warning when too many share one.
 - **Command palette** — `Ctrl-K` / `/` fuzzy command launcher.
 - **QR handoff** — `Q` renders the selected server's SSH command as a QR to open from your phone.
 - **Uplink** — `S` drops you into an SSH session and restores the console on exit.
+- **Audio cues** — soft ticks on each provisioning step, a chord on orbit insertion, a low tone on
+  failure. Toggle with `M`.
+- **Serve over SSH** — run the whole dashboard as an SSH server so it's reachable from any terminal.
 
 ## Requirements
 
@@ -30,7 +34,20 @@ Built with [OpenTUI](https://github.com/sst/opentui) + React on [Bun](https://bu
 ```bash
 bun install
 bun start          # or: bun run src/index.tsx
+bun run compile    # → single self-contained binary `gnd`
 ```
+
+## Serve over SSH
+
+Run the dashboard as an SSH server — operators reach the full live console from any terminal:
+
+```bash
+bun run serve      # listens on 127.0.0.1:2222, publickey auth
+ssh -p 2222 127.0.0.1
+```
+
+Access is gated by `GND_AUTHORIZED_KEYS` (default `~/.ssh/deploy_osiris_01.pub`); the host key is
+generated and persisted under `~/.config/groundstation/`.
 
 ## Configuration
 
@@ -54,6 +71,7 @@ Environment variables (all optional):
 | `S` | Uplink (SSH into selected) |
 | `O` | Orbit view |
 | `Q` | QR handoff |
+| `M` | Mute / unmute sound cues |
 | `Ctrl-K` / `/` | Command palette |
 | `Ctrl-C` | Quit |
 
@@ -82,7 +100,5 @@ bun run compile     # → single-binary `gnd`
 
 ## Roadmap
 
-- Live metrics (Beszel / Cloud Monitoring) → real CPU/mem sparklines
-- 3D region globe (`@opentui/three`, WebGPU)
-- Ambient audio cues for launch milestones
-- Serve the dashboard over SSH (`@opentui/ssh`)
+- btop-inspired theme system (reads btop `.theme` files) with gradient braille meters
+- Live metrics (Beszel / Cloud Monitoring) → real CPU/mem meters

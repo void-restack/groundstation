@@ -1,6 +1,7 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useEffect } from "react"
 import { uplink } from "../adapters/ssh"
+import { toggleMute } from "../audio/cues"
 import { FleetRail } from "../components/FleetRail"
 import { Glass } from "../components/Glass"
 import { HealthHorizon } from "../components/HealthHorizon"
@@ -61,6 +62,11 @@ export function Board() {
       case "q":
         if (current?.externalIp) setQr(true)
         return
+      case "m": {
+        const muted = toggleMute()
+        logEvent({ server: null, level: "info", message: muted ? "audio muted" : "audio on" })
+        return
+      }
     }
   })
 

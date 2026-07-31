@@ -1,9 +1,11 @@
 import { useKeyboard } from "@opentui/react"
+import { ErrorBoundary } from "../components/ErrorBoundary"
 import { StatusLamp } from "../components/StatusLamp"
 import type { Server } from "../domain"
 import { flightCode } from "../lib/format"
 import { useFleet } from "../state/fleet"
 import { setScreen } from "../state/ui"
+import { Globe } from "../three/Globe"
 import { glyph, palette } from "../theme"
 
 function groupByRegion(servers: Server[]): Map<string, Server[]> {
@@ -36,31 +38,53 @@ export function Orbit() {
         </text>
       ) : null}
 
-      <box flexDirection="row" gap={2} flexWrap="wrap" marginTop={1}>
-        {regions.map(([region, list]) => (
-          <box
-            key={region}
-            width={30}
-            border
-            borderStyle="rounded"
-            borderColor={palette.hairline}
-            title={` ${region} `}
-            padding={1}
-            flexDirection="column"
-          >
-            {list.map((s) => (
-              <box key={s.id} flexDirection="row" gap={1}>
-                <StatusLamp status={s.status} />
-                <text fg={palette.starlight}>{s.name}</text>
-                <box flexGrow={1} />
-                <text fg={palette.static}>{flightCode(s.zone)}</text>
+      <box flexDirection="row" flexGrow={1} gap={2} marginTop={1}>
+        <box
+          flexGrow={1}
+          border
+          borderStyle="rounded"
+          borderColor={palette.hairline}
+          title=" GLOBE "
+          titleAlignment="center"
+        >
+          <ErrorBoundary
+            fallback={
+              <box alignItems="center" justifyContent="center" flexGrow={1}>
+                <text fg={palette.static}>globe unavailable (no WebGPU)</text>
               </box>
-            ))}
-          </box>
-        ))}
+            }
+          >
+            <Globe servers={servers} />
+          </ErrorBoundary>
+        </box>
+
+        <box
+          width={38}
+          border
+          borderStyle="rounded"
+          borderColor={palette.hairline}
+          title=" REGIONS "
+          titleAlignment="center"
+          padding={1}
+          flexDirection="column"
+          gap={1}
+        >
+          {regions.map(([region, list]) => (
+            <box key={region} flexDirection="column">
+              <text fg={palette.downlink}>{region} ({list.length})</text>
+              {list.map((s) => (
+                <box key={s.id} flexDirection="row" gap={1}>
+                  <StatusLamp status={s.status} />
+                  <text fg={palette.starlight}>{s.name}</text>
+                  <box flexGrow={1} />
+                  <text fg={palette.static}>{flightCode(s.zone)}</text>
+                </box>
+              ))}
+            </box>
+          ))}
+        </box>
       </box>
 
-      <box flexGrow={1} />
       <text fg={palette.static}>[esc] return to board</text>
     </box>
   )

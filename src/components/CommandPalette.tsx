@@ -1,7 +1,8 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useMemo, useState } from "react"
 import { uplink } from "../adapters/ssh"
-import { refreshFleet, useFleet } from "../state/fleet"
+import { isMuted, toggleMute } from "../audio/cues"
+import { logEvent, refreshFleet, useFleet } from "../state/fleet"
 import { updateAll } from "../state/ops"
 import { setPalette, setScreen, useUI } from "../state/ui"
 import { glyph, palette } from "../theme"
@@ -34,6 +35,14 @@ export function CommandPalette() {
       },
       { id: "orbit", title: "Orbit view", run: () => setScreen("orbit") },
       { id: "refresh", title: "Refresh fleet", run: () => void refreshFleet() },
+      {
+        id: "sound",
+        title: isMuted() ? "Unmute sound cues" : "Mute sound cues",
+        run: () => {
+          const muted = toggleMute()
+          logEvent({ server: null, level: "info", message: muted ? "audio muted" : "audio on" })
+        },
+      },
       { id: "quit", title: "Quit GROUNDSTATION", run: () => renderer.destroy() },
     ],
     [current, renderer],

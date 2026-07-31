@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { initAudio } from "./audio/cues"
 import { CommandPalette } from "./components/CommandPalette"
 import { QrHandoff } from "./components/QrHandoff"
 import { Board } from "./screens/Board"
@@ -13,6 +14,7 @@ export function App() {
 
   useEffect(() => {
     startFleetPolling()
+    initAudio()
   }, [])
 
   const current = servers.find((s) => s.name === selected) ?? null

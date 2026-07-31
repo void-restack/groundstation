@@ -9,15 +9,18 @@
   "scripts": {
     "start": "bun run src/index.tsx",
     "dev": "DEV=true bun run src/index.tsx",
+    "serve": "bun run src/index.tsx serve",
     "typecheck": "tsc --noEmit",
     "compile": "bun build --compile ./src/index.tsx --outfile gnd",
     "test": "bun test"
   },
   "dependencies": {
     "@opentui/core": "^0.4.5",
-    "@opentui/react": "^0.4.5",
     "@opentui/keymap": "^0.4.5",
     "@opentui/qrcode": "^0.4.5",
+    "@opentui/react": "^0.4.5",
+    "@opentui/ssh": "^0.4.5",
+    "@opentui/three": "^0.4.5",
     "react": "^19.2.0"
   },
   "devDependencies": {

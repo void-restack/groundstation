@@ -1,5 +1,6 @@
 import { createInstance } from "../adapters/gcloud"
 import { listTasks, runProvision, type ProvisionEvent } from "../adapters/ansible"
+import { cues } from "../audio/cues"
 import type { LaunchPhase, LaunchStep } from "../domain"
 import { createStore, useStore } from "../lib/store"
 import { fleetSnapshot, logEvent, refreshFleet } from "./fleet"
@@ -67,6 +68,7 @@ function onEvent(e: ProvisionEvent) {
       break
     case "result":
       resolveLast(e.state, e.detail)
+      if (e.state === "ok" || e.state === "changed") cues.click()
       break
     case "log":
       appendLog(e.line)
@@ -106,6 +108,8 @@ export async function beginLaunch(spec: LaunchSpec) {
 
     const ok = await runProvision(spec.name, onEvent)
     launch.set((s) => ({ ...s, phase: ok ? "succeeded" : "failed" }))
+    if (ok) cues.success()
+    else cues.fail()
     logEvent({
       server: spec.name,
       level: ok ? "nominal" : "flare",
@@ -114,6 +118,7 @@ export async function beginLaunch(spec: LaunchSpec) {
   } catch (err) {
     resolveLast("failed", err instanceof Error ? err.message : String(err))
     launch.set((s) => ({ ...s, phase: "failed" }))
+    cues.fail()
     logEvent({ server: spec.name, level: "flare", message: `launch aborted: ${spec.name}` })
   } finally {
     await refreshFleet()
