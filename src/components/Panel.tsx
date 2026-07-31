@@ -8,6 +8,7 @@ interface PanelProps {
   children: ReactNode
   focused?: boolean
   width?: number
+  height?: number
   flexGrow?: number
   padding?: number
   right?: string
@@ -19,6 +20,7 @@ export function Panel({
   children,
   focused = false,
   width,
+  height,
   flexGrow,
   padding,
   right,
@@ -26,6 +28,7 @@ export function Panel({
   return (
     <box
       width={width}
+      height={height}
       flexGrow={flexGrow}
       padding={padding}
       border

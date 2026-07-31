@@ -50,10 +50,10 @@ export function MeterStat({
   width?: number
 }) {
   return (
-    <box flexDirection="row" gap={1}>
-      <text fg={palette.static}>{label}</text>
+    <box flexDirection="row">
+      <text fg={palette.static}>{label} </text>
       <Meter value={value} width={width} />
-      <text fg={palette.starlight}>{caption}</text>
+      <text fg={palette.starlight}> {caption}</text>
     </box>
   )
 }

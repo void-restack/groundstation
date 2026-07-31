@@ -1,6 +1,6 @@
 import { useKeyboard } from "@opentui/react"
-import { GlobeAscii } from "../components/GlobeAscii"
 import { StatusLamp } from "../components/StatusLamp"
+import { WorldMap } from "../components/WorldMap"
 import type { Server } from "../domain"
 import { flightCode } from "../lib/format"
 import { useFleet } from "../state/fleet"
@@ -43,10 +43,11 @@ export function Orbit() {
           border
           borderStyle="rounded"
           borderColor={palette.hairline}
-          title=" GLOBE "
-          titleAlignment="center"
+          title="⁵ WORLD"
+          titleAlignment="left"
+          titleColor={palette.static}
         >
-          <GlobeAscii servers={servers} />
+          <WorldMap servers={servers} />
         </box>
 
         <box

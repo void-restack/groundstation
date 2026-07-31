@@ -11,7 +11,7 @@ export function FleetRail({
 }) {
   return (
     <box
-      width={34}
+      width={40}
       border
       borderStyle="rounded"
       borderColor={palette.downlink}
@@ -20,8 +20,11 @@ export function FleetRail({
       titleColor={palette.downlink}
       flexDirection="column"
     >
-      <scrollbox flexGrow={1} stickyScroll={false}>
-        <box flexDirection="column" gap={1} paddingTop={1} paddingBottom={1}>
+      <box flexDirection="row" paddingLeft={3}>
+        <text fg={palette.static}>{"NAME".padEnd(17)}{"ZONE".padEnd(8)}TYPE</text>
+      </box>
+      <scrollbox flexGrow={1}>
+        <box flexDirection="column">
           {servers.map((s) => (
             <FleetCard key={s.id} server={s} selected={s.name === selected} />
           ))}
