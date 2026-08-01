@@ -1,51 +1,90 @@
-# GROUNDSTATION 🛰️
+# GROUNDSTATION
 
-**Mission control for a small cloud fleet — a terminal command center over `gcloud` and Ansible.**
+[![CI](https://github.com/void-restack/groundstation/actions/workflows/ci.yml/badge.svg)](https://github.com/void-restack/groundstation/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/void-restack/groundstation?sort=semver)](https://github.com/void-restack/groundstation/releases/latest)
+[![License](https://img.shields.io/github/license/void-restack/groundstation)](LICENSE)
 
-Stop treating your servers as a log-scroll and start flying them from a console. Every VM is a
-satellite, provisioning is a launch sequence, SSH is an uplink. A healthy fleet is an almost-still
-screen — *motion is information*.
+Mission control for a cloud fleet — a terminal command center over `gcloud` and Ansible.
+Every VM is a satellite, provisioning is a launch sequence, SSH is an uplink; a healthy fleet is an
+almost-still screen where motion is information.
 
-Built with [OpenTUI](https://github.com/sst/opentui) + React, on [Bun](https://bun.sh). Themed with
+Built with [OpenTUI](https://github.com/sst/opentui) and React on [Bun](https://bun.sh), themed from
 real [btop](https://github.com/aristocratos/btop) `.theme` files.
 
----
+> [!NOTE]
+> Targets GCP + Ansible today. Multi-cloud and pluggable provisioning are on the [roadmap](#roadmap).
 
-## Features
+## Highlights
 
-- **The Board** — a live dashboard with breathing status lamps, flight-code callsigns
-  (`us-central1-a` → `USC1·A`), an overview strip of gradient braille meters, per-vessel telemetry,
-  and a live event ticker.
-- **Launch sequence** — provision a new server through a flight-plan form and a pre-flight manifest,
-  then watch a `T-minus` countdown stream the real Ansible run task-by-task (create VM → wait for
-  boot → provision), with soft audio cues at each milestone.
-- **Orbit** — a rotating ASCII Earth with a day/night terminator and health-colored region markers,
-  beside a region breakdown that warns when too much of the fleet shares one region.
+- **Board** — live fleet dashboard: breathing status lamps, flight-code callsigns (`us-central1-a` → `USC1·A`), gradient braille meters, per-vessel telemetry, and an event ticker.
+- **Launch** — provision a new server through a fuzzy-picked flight plan and pre-flight manifest, then watch a `T-minus` countdown stream the real Ansible run task-by-task.
+- **Orbit** — a world map with a day/night terminator and health-colored region markers, with a region-concentration warning.
 - **Command palette** — `Ctrl-K` / `/` fuzzy launcher for every action.
-- **Uplink** — `S` drops you into an SSH session and restores the console on exit.
-- **Serve over SSH** — run the whole dashboard as an SSH server, reachable from any terminal.
-- **btop theming** — reads btop `.theme` files, so the palette and meter gradients match your setup.
+- **Uplink & serve** — `S` drops into an SSH session; `serve` exposes the whole dashboard over SSH.
 
-## Requirements
+## Install
 
-- [Bun](https://bun.sh) ≥ 1.3
-- Google Cloud SDK (`gcloud`), authenticated with a project set — this is all the **fleet viewer** needs
-- *Optional:* an Ansible provisioning directory — only for the **Launch/provision** and **Update** features.
-  Point `GND_ANSIBLE_DIR` (or the in-app setup) at a dir containing `playbooks/provision-server.yml`
-  and `playbooks/update-all.yml`. Without it, those actions are shown disabled with a hint; everything
-  else works.
-- *Optional:* an SSH key — only for **Uplink** and the hardened probe. Unset, `ssh` uses your agent/config.
+### Binary
 
-## Quick start
+Prebuilt binaries are attached to every [release](https://github.com/void-restack/groundstation/releases/latest).
+
+```bash
+# macOS (Apple Silicon)
+curl -Lo gnd https://github.com/void-restack/groundstation/releases/latest/download/gnd-darwin-arm64
+
+# Linux (x86-64)
+curl -Lo gnd https://github.com/void-restack/groundstation/releases/latest/download/gnd-linux-x64
+
+chmod +x gnd && sudo mv gnd /usr/local/bin/gnd
+```
+
+Windows: download `gnd-windows-x64.exe` from the [releases page](https://github.com/void-restack/groundstation/releases/latest).
+
+> [!TIP]
+> The macOS binary is unsigned — clear the quarantine flag once with `xattr -d com.apple.quarantine gnd`.
+
+### Linux packages
+
+Each release also ships native packages:
+
+```bash
+sudo dpkg  -i  groundstation_*_amd64.deb           # Debian / Ubuntu
+sudo rpm   -i  groundstation-*.x86_64.rpm          # Fedora / RHEL
+sudo pacman -U groundstation-*-x86_64.pkg.tar.zst  # Arch
+```
+
+### Nix
+
+```bash
+nix run github:void-restack/groundstation             # run without installing
+nix profile install github:void-restack/groundstation
+```
+
+### From source
 
 ```bash
 bun install
-bun start              # launch the dashboard (no config needed — just a gcloud login)
-bun run compile        # → a single self-contained binary: ./gnd
-bun run install-local  # compile + copy gnd into ~/.local/bin (must be on your PATH)
+bun start          # run the dashboard
+bun run compile    # → a single self-contained binary: ./gnd
 ```
 
-## Keybindings
+## Requirements
+
+- **Google Cloud SDK** (`gcloud`), authenticated with a project set — all the fleet viewer needs.
+- *Optional:* an **Ansible** directory containing `playbooks/provision-server.yml` and `playbooks/update-all.yml`, to enable Launch and Update.
+- *Optional:* an **SSH key** for uplink and the hardened probe — otherwise `ssh` uses your agent/config.
+
+Anything missing is shown disabled with a hint; everything else keeps working. Press `Ctrl-T` in-app to check or install these tools.
+
+## Usage
+
+```bash
+gnd            # launch the dashboard
+gnd serve      # serve the dashboard over SSH
+gnd --help
+```
+
+First run walks you through the optional setup; reopen it anytime with `,`.
 
 | Key | Action |
 |-----|--------|
@@ -54,41 +93,21 @@ bun run install-local  # compile + copy gnd into ~/.local/bin (must be on your P
 | `U` | Update all — constellation sweep |
 | `S` | Uplink (SSH into the selected vessel) |
 | `O` | Orbit view |
+| `,` | Settings |
+| `Ctrl-T` | Dependency doctor |
 | `M` | Mute / unmute sound cues |
 | `Ctrl-K` / `/` | Command palette |
 | `Q` / `Ctrl-C` | Quit |
 
-## Theming
-
-GROUNDSTATION derives its entire palette — including the meter gradients — from a btop theme, so it
-matches whatever you already run in btop.
-
-```bash
-GND_BTOP_THEME=tokyo-night bun start          # from ~/.config/btop/themes/tokyo-night.theme
-GND_THEME=/path/to/custom.theme bun start     # any btop .theme file
-```
-
-It ships with a built-in tokyo-night default, so no configuration is required.
-
-## Serve over SSH
-
-Run the dashboard as an SSH server and reach the full live console from any terminal:
-
-```bash
-bun run serve                 # listens on 127.0.0.1:2222, public-key auth
-ssh -p 2222 127.0.0.1
-```
-
-Access is gated by an authorized-keys file (`GND_AUTHORIZED_KEYS`, default the standard
-`~/.ssh/authorized_keys`); the host key is generated and persisted under `~/.config/groundstation/`.
-If no keys are present, `serve` refuses to start rather than opening an unreachable port.
-
 ## Configuration
 
-GROUNDSTATION runs with **zero configuration** — the fleet viewer only needs a `gcloud` login. Settings
-are stored in `~/.config/groundstation/config.json` (honouring `XDG_CONFIG_HOME`) and every value is also
-overridable by an environment variable, with precedence **env var > config file > auto-detected default**.
-None of the defaults are personal or machine-specific.
+Zero config to start — the viewer only needs a `gcloud` login. Settings are stored in
+`~/.config/groundstation/config.json` (honouring `XDG_CONFIG_HOME`), and every value is also an
+environment override, with precedence **env var > config file > auto-detected default**. None of the
+defaults are personal or machine-specific.
+
+<details>
+<summary>Environment variables</summary>
 
 | Variable | Config key | Default | Purpose |
 |----------|-----------|---------|---------|
@@ -104,10 +123,33 @@ None of the defaults are personal or machine-specific.
 | `GND_BTOP_THEME` | – | – | Named theme under `~/.config/btop/themes/` |
 | `GND_THEME` | – | – | Absolute path to a btop `.theme` file |
 
+</details>
+
+### Theming
+
+The entire palette, including the meter gradients, is derived from a btop theme, so it matches
+whatever you already run. It ships with a built-in `tokyo-night` default.
+
+```bash
+GND_BTOP_THEME=tokyo-night gnd      # from ~/.config/btop/themes/tokyo-night.theme
+GND_THEME=/path/to/custom.theme gnd # any btop .theme file
+```
+
+### Serve over SSH
+
+```bash
+gnd serve            # listens on 127.0.0.1:2222, public-key auth
+ssh -p 2222 127.0.0.1
+```
+
+Access is gated by an authorized-keys file (`GND_AUTHORIZED_KEYS`, default `~/.ssh/authorized_keys`);
+the host key is generated under `~/.config/groundstation/`. With no keys present, `serve` refuses to
+start rather than open an unreachable port.
+
 ## How it works
 
-The UI is a thin React front-end over an adapter layer that shells out to the tools you already have
-— there is no new infrastructure to run:
+A thin React front-end over an adapter layer that shells out to tools you already have — no new
+infrastructure to run.
 
 | Concern | Source |
 |---------|--------|
@@ -115,43 +157,24 @@ The UI is a thin React front-end over an adapter layer that shells out to the to
 | Provisioning | `ansible-playbook`, streamed and parsed into the countdown |
 | Uplink | `ssh` (the renderer suspends and resumes around it) |
 
-## Architecture
-
-```
-src/
-├── adapters/    exec, gcloud, ansible, ssh, tools — the shell-out layer (Bun.spawn)
-├── state/       stores (fleet, ui, launch, ops, config, toast, clock) via useSyncExternalStore
-├── components/  renderables + kit (Dialog, SearchModal, LogView, Spinner, ToastHost,
-│                ToolsModal, ConfigForm, Field, Panel, Meter, WorldMap, …)
-├── screens/     Board, Launch, Orbit, Setup, Settings
-├── lib/         pure helpers (format, color, gradient, geo, errors, worldmap, wav)
-├── audio/       synthesized sound cues
-├── config.ts    persisted profile, env>file>auto resolution, capability detection
-├── theme.ts     btop .theme loader → palette + meter gradient
-├── server.tsx   SSH server entry
-└── index.tsx    entry point (local renderer or `serve`)
-```
-
-GROUNDSTATION targets GCP + Ansible today; the roadmap below is the direction of travel.
-
 ## Development
 
 ```bash
 bun run typecheck
 bun test
-bun run compile        # → ./gnd (single self-contained binary)
+bun run compile
 ```
 
-CI runs typecheck + tests on every push; tagging `vX.Y.Z` builds binaries for
-Linux/macOS/Windows and attaches them to a GitHub Release.
+CI runs typecheck and tests on every push; pushing a `vX.Y.Z` tag builds Linux/macOS/Windows binaries
+and publishes a GitHub Release.
 
 ## Roadmap
 
-- **Multi-cloud** — a provider abstraction (GCP today; AWS/Azure next) over each vendor CLI, so one fleet view spans clouds
-- **In-TUI cloud ops** — a per-vessel action menu (start/stop/reset/delete/describe), project & auth switching, serial console — without leaving the console
-- **Pluggable provisioning** — bring your own (cloud-init / Ansible / shell); Ansible optional, never required
-- **Live metrics** — Beszel / Cloud Monitoring → real CPU/mem meters per vessel
+- **Multi-cloud** — a provider abstraction (GCP today; AWS/Azure next) over each vendor CLI, so one fleet view spans clouds.
+- **In-TUI cloud ops** — a per-vessel action menu (start/stop/reset/delete/describe), project and auth switching, serial console.
+- **Pluggable provisioning** — bring your own (cloud-init / Ansible / shell); Ansible optional, never required.
+- **Live metrics** — Beszel / Cloud Monitoring for real CPU and memory meters per vessel.
 
 ## License
 
-MIT
+[MIT](LICENSE)
