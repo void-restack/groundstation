@@ -1,6 +1,8 @@
 import { useEffect } from "react"
 import { initAudio } from "./audio/cues"
 import { CommandPalette } from "./components/CommandPalette"
+import { ConfirmDialog } from "./components/ConfirmDialog"
+import { OpRunner } from "./components/OpRunner"
 import { ToastHost } from "./components/ToastHost"
 import { ToolsModal } from "./components/ToolsModal"
 import { Board } from "./screens/Board"
@@ -44,6 +46,8 @@ export function App() {
       )}
       {paletteOpen ? <CommandPalette /> : null}
       {toolsOpen ? <ToolsModal /> : null}
+      <ConfirmDialog />
+      <OpRunner />
       <ToastHost />
     </box>
   )

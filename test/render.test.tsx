@@ -1,11 +1,17 @@
 import { expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
+import { ActionMenu } from "../src/components/ActionMenu"
 import { ConfigForm } from "../src/components/ConfigForm"
+import { ConfirmDialog } from "../src/components/ConfirmDialog"
 import { FleetCard } from "../src/components/FleetCard"
 import { Glass } from "../src/components/Glass"
 import { LogView } from "../src/components/LogView"
+import { OpRunner } from "../src/components/OpRunner"
 import { SearchModal } from "../src/components/SearchModal"
 import { ToolsModal } from "../src/components/ToolsModal"
+import { actionsFor } from "../src/state/actions"
+import { confirm, resolveConfirm } from "../src/state/confirm"
+import { runOp } from "../src/state/oprunner"
 import { serverToInstance } from "../src/providers/gcp"
 import type { Server } from "../src/domain"
 
@@ -44,6 +50,74 @@ test("Glass renders telemetry for the selected vessel", async () => {
     expect(frame).toContain("lab")
     expect(frame).toContain("203.0.113.21")
   } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("actionsFor gates lifecycle actions by instance state", () => {
+  const running = actionsFor(instance).map((a) => a.id)
+  expect(running).toContain("stop")
+  expect(running).toContain("delete")
+  expect(running).not.toContain("start")
+
+  const stopped = actionsFor({ ...instance, state: "terminated" }).map((a) => a.id)
+  expect(stopped).toContain("start")
+  expect(stopped).not.toContain("stop")
+})
+
+test("ActionMenu lists the state-valid actions for a running vessel", async () => {
+  const setup = await testRender(<ActionMenu instance={instance} onClose={() => {}} />, {
+    width: 60,
+    height: 20,
+  })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("ACTIONS")
+    expect(frame).toContain("Stop")
+    expect(frame).toContain("Delete")
+    expect(frame).not.toContain("Start") // running → start is gated out
+  } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("ConfirmDialog shows the effect summary + billing note for a pending request", async () => {
+  const pending = confirm({
+    title: "Stop lab?",
+    message: "Stop lab in us-central1-a.",
+    billing: "halts compute; disks still bill",
+    mode: "yn",
+  })
+  const setup = await testRender(<ConfirmDialog />, { width: 60, height: 12 })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("Stop lab?")
+    expect(frame).toContain("halts compute")
+  } finally {
+    resolveConfirm(false)
+    await pending
+    setup.renderer.destroy()
+  }
+})
+
+test("OpRunner shows the op title and running chrome while an op is in flight", async () => {
+  let release = () => {}
+  const gate = new Promise<void>((r) => (release = r))
+  const done = runOp("stop · lab", async () => {
+    await gate
+  })
+  const setup = await testRender(<OpRunner />, { width: 60, height: 20 })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("stop · lab")
+    expect(frame).toContain("running")
+    expect(frame).toContain("working…")
+  } finally {
+    release()
+    await done
     setup.renderer.destroy()
   }
 })

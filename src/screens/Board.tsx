@@ -2,19 +2,23 @@ import { useKeyboard, useRenderer } from "@opentui/react"
 import { useEffect } from "react"
 import { uplink } from "../adapters/ssh"
 import { toggleMute } from "../audio/cues"
+import { ActionMenu } from "../components/ActionMenu"
 import { FleetRail } from "../components/FleetRail"
 import { Glass } from "../components/Glass"
 import { KeyStrip } from "../components/KeyStrip"
 import { Overview } from "../components/Overview"
 import { Ticker } from "../components/Ticker"
 import { TopBar } from "../components/TopBar"
+import { confirmActive } from "../state/confirm"
 import { logEvent, refreshFleet, useEvents, useFleet } from "../state/fleet"
+import { opActive } from "../state/oprunner"
 import { updateAll } from "../state/ops"
-import { ensureSelection, moveSelection, setPalette, setScreen, setTools, useUI } from "../state/ui"
+import { ensureSelection, moveSelection, setActionMenu, setPalette, setScreen, setTools, useUI } from "../state/ui"
 import { palette } from "../theme"
 
 const HINTS = [
   { key: "↑↓", label: "select" },
+  { key: "⏎", label: "actions" },
   { key: "P", label: "rovision" },
   { key: "U", label: "pdate all" },
   { key: "S", label: "sh" },
@@ -27,7 +31,7 @@ const HINTS = [
 
 export function Board() {
   const { instances, loading } = useFleet()
-  const { selected, paletteOpen, toolsOpen } = useUI()
+  const { selected, paletteOpen, toolsOpen, actionMenuOpen } = useUI()
   const events = useEvents()
   const renderer = useRenderer()
 
@@ -39,11 +43,12 @@ export function Board() {
   }, [names.join(",")])
 
   useKeyboard((key) => {
-    if (paletteOpen || toolsOpen) return
+    if (paletteOpen || toolsOpen || actionMenuOpen || confirmActive() || opActive()) return
     if (key.ctrl && key.name === "k") return setPalette(true)
     if (key.ctrl && key.name === "t") return setTools(true)
     if (key.sequence === "/") return setPalette(true)
     if (key.sequence === ",") return setScreen("settings")
+    if (key.name === "return") return void (current && setActionMenu(true))
     switch (key.name) {
       case "up":
       case "k":
@@ -51,6 +56,8 @@ export function Board() {
       case "down":
       case "j":
         return moveSelection(names, 1)
+      case "a":
+        return void (current && setActionMenu(true))
       case "p":
         // always open the provision screen; it shows a disabled banner with a
         // jump to settings when there's no playbook dir yet
@@ -87,6 +94,9 @@ export function Board() {
       <KeyStrip hints={HINTS} />
       {loading && instances.length === 0 ? (
         <text fg={palette.static}> acquiring fleet…</text>
+      ) : null}
+      {actionMenuOpen && current ? (
+        <ActionMenu instance={current} onClose={() => setActionMenu(false)} />
       ) : null}
     </box>
   )
