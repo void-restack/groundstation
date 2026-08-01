@@ -24,6 +24,14 @@ real [btop](https://github.com/aristocratos/btop) `.theme` files.
 
 ## Install
 
+### Homebrew
+
+macOS (Apple Silicon) and Linux:
+
+```bash
+brew install void-restack/tap/groundstation
+```
+
 ### Binary
 
 Prebuilt binaries are attached to every [release](https://github.com/void-restack/groundstation/releases/latest).
