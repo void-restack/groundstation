@@ -1,7 +1,6 @@
 import { getProvider } from "../providers/registry"
 import { getProvisioner } from "../provisioners/registry"
-import type { ProvisionEvent, ProvisionerKind, ProvisioningProfile } from "../provisioners/types"
-import { config } from "../config"
+import type { ProvisionEvent, ProvisioningProfile } from "../provisioners/types"
 import { cues } from "../audio/cues"
 import type { LaunchPhase, LaunchStep } from "../domain"
 import { createStore, useStore } from "../lib/store"
@@ -13,7 +12,7 @@ export interface LaunchSpec {
   machineType: string
   imageFamily: string
   imageProject: string
-  provisioner: ProvisionerKind
+  provisioning: ProvisioningProfile
 }
 
 interface LaunchState {
@@ -79,15 +78,6 @@ function onEvent(e: ProvisionEvent) {
   }
 }
 
-function profileFor(kind: ProvisionerKind): ProvisioningProfile {
-  return {
-    name: kind,
-    kind,
-    userData: config.cloudInitFile ?? undefined,
-    script: config.shellScript ?? undefined,
-  }
-}
-
 async function settle(name: string, timeoutMs = 120000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -105,8 +95,8 @@ export async function beginLaunch(spec: LaunchSpec) {
   launch.set({ ...initial, phase: "running", target: spec.name })
   logEvent({ server: spec.name, level: "info", message: `launch sequence: ${spec.name}` })
 
-  const provisioner = getProvisioner(spec.provisioner)
-  const profile = profileFor(spec.provisioner)
+  const profile = spec.provisioning
+  const provisioner = getProvisioner(profile.kind)
 
   try {
     pushStep({ name: "provision vessel", role: "gcloud", state: "running", durationMs: null, detail: null })

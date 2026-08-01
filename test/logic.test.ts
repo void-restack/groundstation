@@ -10,7 +10,8 @@ import { zoneLocation } from "../src/lib/geo"
 import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
 import { getProvisioner, registeredProvisioners } from "../src/provisioners/registry"
-import { mkdtempSync, rmSync, writeFileSync } from "fs"
+import { TEMPLATES } from "../src/provisioners/templates"
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
 import type { Server } from "../src/domain"
@@ -269,6 +270,23 @@ test("cloud-init resolves the user-provided config file into a user-data payload
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test("built-in templates ship ready-to-use cloud-configs (docker, hardened)", () => {
+  const ids = TEMPLATES.map((t) => t.id)
+  expect(ids).toContain("docker")
+  expect(ids).toContain("hardened")
+  for (const t of TEMPLATES) expect(t.cloudConfig.startsWith("#cloud-config")).toBe(true)
+})
+
+test("cloud-init materializes inline template content into a user-data file", () => {
+  const payload = getProvisioner("cloud-init").buildCreatePayload!({
+    name: "docker",
+    kind: "cloud-init",
+    userDataContent: TEMPLATES[0]!.cloudConfig,
+  })
+  expect(payload.key).toBe("user-data")
+  expect(readFileSync(payload.value, "utf8")).toContain("#cloud-config")
 })
 
 test("cloud-init rejects a missing user-data file with a clear error", () => {

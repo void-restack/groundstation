@@ -11,11 +11,10 @@ export type ProvisionEvent =
 export interface ProvisioningProfile {
   name: string
   kind: ProvisionerKind
-  playbook?: string
-  dir?: string
   script?: string
   command?: string
-  userData?: string
+  userData?: string        // path to a cloud-config file
+  userDataContent?: string // inline cloud-config (e.g. a built-in template)
   bootstrapUser?: string
   vars?: Record<string, string>
 }

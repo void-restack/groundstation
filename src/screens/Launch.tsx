@@ -9,7 +9,8 @@ import { SearchModal, type SearchItem } from "../components/SearchModal"
 import { Spinner } from "../components/Spinner"
 import type { LaunchStep } from "../domain"
 import { duration } from "../lib/format"
-import type { ProvisionerKind } from "../provisioners/types"
+import { TEMPLATES } from "../provisioners/templates"
+import type { ProvisioningProfile } from "../provisioners/types"
 import { useClock } from "../state/clock"
 import { beginLaunch, launchPhase, resetLaunch, useLaunch, type LaunchSpec } from "../state/launch"
 import { setScreen } from "../state/ui"
@@ -121,18 +122,39 @@ export function Launch() {
   const [zone, setZone] = useState(FALLBACK_ZONES[0]!)
   const [machine, setMachine] = useState(MACHINES[0]!)
   const [image, setImage] = useState<Image>(IMAGES[0]!)
-  const [provisioner, setProvisioner] = useState<ProvisionerKind>("none")
+  const [provisioning, setProvisioning] = useState<ProvisioningProfile>({ name: "none", kind: "none" })
 
   const [zones, setZones] = useState<string[]>(FALLBACK_ZONES)
   const [zonesLoading, setZonesLoading] = useState(true)
 
-  const provisionItems = useMemo<SearchItem<ProvisionerKind>[]>(() => {
-    const items: SearchItem<ProvisionerKind>[] = [{ value: "none", label: "none — bare box" }]
-    if (config.cloudInitFile) items.push({ value: "cloud-init", label: "cloud-init", hint: baseName(config.cloudInitFile) })
-    if (config.shellScript) items.push({ value: "shell", label: "shell script", hint: baseName(config.shellScript) })
+  const provisionItems = useMemo<SearchItem<ProvisioningProfile>[]>(() => {
+    const items: SearchItem<ProvisioningProfile>[] = [
+      { value: { name: "none", kind: "none" }, label: "none — bare box" },
+    ]
+    for (const t of TEMPLATES) {
+      items.push({
+        value: { name: t.id, kind: "cloud-init", userDataContent: t.cloudConfig },
+        label: t.label,
+        hint: "cloud-init",
+      })
+    }
+    if (config.cloudInitFile) {
+      items.push({
+        value: { name: "cloud-init-file", kind: "cloud-init", userData: config.cloudInitFile },
+        label: "my cloud-init file",
+        hint: baseName(config.cloudInitFile),
+      })
+    }
+    if (config.shellScript) {
+      items.push({
+        value: { name: "shell", kind: "shell", script: config.shellScript },
+        label: "my shell script",
+        hint: baseName(config.shellScript),
+      })
+    }
     return items
   }, [])
-  const provisionLabel = provisionItems.find((i) => i.value === provisioner)?.label ?? provisioner
+  const provisionLabel = provisionItems.find((i) => i.value.name === provisioning.name)?.label ?? provisioning.name
 
   useEffect(() => {
     let alive = true
@@ -155,7 +177,7 @@ export function Launch() {
     machineType: machine,
     imageFamily: image.family,
     imageProject: image.project,
-    provisioner,
+    provisioning,
   })
 
   const back = () => {
@@ -223,12 +245,7 @@ export function Launch() {
             {!name.trim() ? <text fg={palette.hairline}>{glyph.sep} name required</text> : null}
           </box>
 
-          {provisionItems.length === 1 ? (
-            <text fg={palette.static} marginTop={1}>
-              set a cloud-init file or shell script in settings [ , ] to provision on launch
-            </text>
-          ) : null}
-          <text fg={palette.static}>
+          <text fg={palette.static} marginTop={1}>
             ↑↓/tab move {glyph.sep} enter {glyph.search} search / continue {glyph.sep} esc abort
           </text>
         </box>
@@ -277,11 +294,11 @@ export function Launch() {
           onClose={() => setPicker(null)}
         />
       ) : picker === "provision" ? (
-        <SearchModal<ProvisionerKind>
+        <SearchModal<ProvisioningProfile>
           title="SELECT PROVISIONING"
-          placeholder="none · cloud-init · shell…"
+          placeholder="none · templates · your files…"
           items={provisionItems}
-          onPick={setProvisioner}
+          onPick={setProvisioning}
           onClose={() => setPicker(null)}
         />
       ) : null}
