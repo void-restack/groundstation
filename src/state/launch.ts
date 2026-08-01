@@ -2,7 +2,7 @@ import { getProvider } from "../providers/registry"
 import { getProvisioner } from "../provisioners/registry"
 import type { ProvisionEvent, ProvisioningProfile } from "../provisioners/types"
 import { cues } from "../audio/cues"
-import type { LaunchPhase, LaunchStep } from "../domain"
+import type { Instance, LaunchPhase, LaunchStep } from "../domain"
 import { createStore, useStore } from "../lib/store"
 import { fleetSnapshot, logEvent, refreshFleet } from "./fleet"
 
@@ -53,6 +53,28 @@ function resolveLast(state: LaunchStep["state"], detail?: string) {
 function appendLog(line: string) {
   if (!line.trim()) return
   launch.set((s) => ({ ...s, log: [...s.log, line].slice(-MAX_LOG) }))
+}
+
+function appendLogLines(lines: string[]) {
+  const clean = lines.filter((l) => l.trim())
+  if (!clean.length) return
+  launch.set((s) => ({ ...s, log: [...s.log, ...clean].slice(-MAX_LOG) }))
+}
+
+/** Poll the serial console, streaming new output, until cloud-init reports finished. */
+async function waitCloudInit(inst: Instance, timeoutMs = 300000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  let seen = 0
+  while (Date.now() < deadline) {
+    const out = await getProvider().serialConsole(inst).catch(() => "")
+    if (out.length > seen) {
+      appendLogLines(out.slice(seen).split("\n"))
+      seen = out.length
+    }
+    if (/cloud-init v[^\n]*finished/i.test(out)) return true
+    await Bun.sleep(6000)
+  }
+  return false
 }
 
 function onEvent(e: ProvisionEvent) {
@@ -120,15 +142,31 @@ export async function beginLaunch(spec: LaunchSpec) {
     resolveLast(up ? "ok" : "failed")
     if (!up) throw new Error("vessel did not reach RUNNING with an external IP")
 
+    const inst = fleetSnapshot().find((s) => s.name === spec.name)
+
+    if (provisioner.injectsAtCreate) {
+      // cloud-init: injected at create, runs at first boot — watch it finish
+      pushStep({ name: "cloud-init (first boot)", role: "cloud-init", state: "running", durationMs: null, detail: null })
+      const done = inst ? await waitCloudInit(inst) : false
+      resolveLast(done ? "ok" : "changed", done ? undefined : "still running — watch the serial console")
+      launch.set((s) => ({ ...s, phase: "succeeded" }))
+      cues.success()
+      logEvent({
+        server: spec.name,
+        level: "nominal",
+        message: done ? `${spec.name} in orbit — cloud-init done` : `${spec.name} in orbit — cloud-init running`,
+      })
+      return
+    }
+
     if (!provisioner.run) {
-      // none, or cloud-init (already injected at create) → the box is the deliverable
+      // none → a bare box is the deliverable
       launch.set((s) => ({ ...s, phase: "succeeded" }))
       cues.success()
       logEvent({ server: spec.name, level: "nominal", message: `${spec.name} in orbit` })
       return
     }
 
-    const inst = fleetSnapshot().find((s) => s.name === spec.name)
     if (!inst) throw new Error("vessel vanished before provisioning")
     const ctx = { instance: inst, profile, provider: getProvider() }
 
