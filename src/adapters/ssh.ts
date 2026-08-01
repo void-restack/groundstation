@@ -1,15 +1,10 @@
 import type { CliRenderer } from "@opentui/core"
 import { config } from "../config"
 import type { Instance } from "../domain"
+import { getProvider } from "../providers/registry"
 
 /** `-i <key>` only when a key is configured; otherwise ssh uses its own agent/config. */
 const keyArgs = (): string[] => (config.sshKey ? ["-i", config.sshKey] : [])
-
-export function sshCommand(inst: Instance): string | null {
-  if (!inst.externalIp) return null
-  const key = config.sshKey ? `-i ${config.sshKey} ` : ""
-  return `ssh ${key}${config.deployUser}@${inst.externalIp}`
-}
 
 export async function probeHardened(inst: Instance): Promise<boolean> {
   if (!inst.externalIp) return false
@@ -30,14 +25,13 @@ export async function probeHardened(inst: Instance): Promise<boolean> {
   return (await proc.exited) === 0
 }
 
+/** Interactive shell into a vessel via the provider's SSH command (GCP: gcloud
+ *  compute ssh, which provisions the key for you). Renderer suspended, like install. */
 export async function uplink(renderer: CliRenderer, inst: Instance): Promise<number> {
-  if (!inst.externalIp) throw new Error(`${inst.name} has no external IP`)
+  const cmd = getProvider().sshCommand(inst)
   renderer.suspend()
   try {
-    const proc = Bun.spawn(
-      ["ssh", ...keyArgs(), `${config.deployUser}@${inst.externalIp}`],
-      { stdin: "inherit", stdout: "inherit", stderr: "inherit" },
-    )
+    const proc = Bun.spawn(cmd, { stdin: "inherit", stdout: "inherit", stderr: "inherit" })
     return await proc.exited
   } finally {
     renderer.resume()

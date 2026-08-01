@@ -53,7 +53,7 @@ export function CommandPalette() {
         id: "ssh",
         title: current ? `Uplink → ${current.name}` : "Uplink (select a vessel first)",
         run: () => {
-          if (current?.externalIp) void uplink(renderer, current).then(() => refreshFleet())
+          if (current) void uplink(renderer, current).then(() => refreshFleet())
         },
       },
       { id: "orbit", title: "Orbit view", run: () => setScreen("orbit") },

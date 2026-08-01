@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core"
-import { sshCommand } from "../adapters/ssh"
 import type { Instance } from "../domain"
+import { getProvider } from "../providers/registry"
 import { elapsed } from "../lib/format"
 import { hardenedVisual, statusVisual } from "../lib/status"
 import { useClock } from "../state/clock"
@@ -38,7 +38,7 @@ export function Glass({ instance }: { instance: Instance | null }) {
 
   const status = statusVisual(instance.state)
   const chip = hardenedVisual(instance.hardened)
-  const ssh = sshCommand(instance)
+  const ssh = getProvider().sshCommand(instance).join(" ")
 
   return (
     <box
@@ -72,12 +72,10 @@ export function Glass({ instance }: { instance: Instance | null }) {
 
       <box flexGrow={1} />
 
-      {ssh ? (
-        <box flexDirection="column">
-          <text fg={palette.static}>UPLINK</text>
-          <text fg={palette.hairline}>{ssh}</text>
-        </box>
-      ) : null}
+      <box flexDirection="column">
+        <text fg={palette.static}>UPLINK</text>
+        <text fg={palette.hairline}>{ssh}</text>
+      </box>
     </box>
   )
 }

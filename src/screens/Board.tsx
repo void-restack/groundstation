@@ -64,7 +64,7 @@ export function Board() {
       case "o":
         return setScreen("orbit")
       case "s":
-        if (current?.externalIp) {
+        if (current) {
           logEvent({ server: current.name, level: "info", message: `uplink → ${current.name}` })
           void uplink(renderer, current).then(() => refreshFleet())
         }

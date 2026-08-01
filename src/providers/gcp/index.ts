@@ -159,6 +159,15 @@ export const gcp: Provider = {
     return { id: spec.name, name: spec.name }
   },
 
+  sshCommand(inst: Instance): string[] {
+    // gcloud manages the key (generates ~/.ssh/google_compute_engine, pushes it to
+    // instance metadata / OS Login) and connects as the local user — so a fresh box
+    // works without any manual key setup.
+    const args = ["gcloud", "compute", "ssh", inst.name]
+    if (inst.zone) args.push(`--zone=${inst.zone}`)
+    return args
+  },
+
   start: (inst) => runLifecycle("start", inst),
   stop: (inst) => runLifecycle("stop", inst),
   reset: (inst) => runLifecycle("reset", inst),
