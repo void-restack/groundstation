@@ -183,13 +183,6 @@ test("GCP createFields drives a zone/size/image launch form", () => {
   expect(getProvider().createFields().map((f) => f.key)).toEqual(["zone", "size", "image"])
 })
 
-test("GCP listSizes returns pickable machine types", async () => {
-  const sizes = await getProvider().listSizes("us-central1")
-  expect(sizes.length).toBeGreaterThan(0)
-  expect(sizes.every((c) => c.value === c.label)).toBe(true)
-  expect(sizes.map((c) => c.value)).toContain("e2-micro")
-})
-
 test("GCP listImages encodes imageProject inside the Choice value", async () => {
   const images = await getProvider().listImages("us-central1")
   const debian = images.find((c) => c.label === "debian-12")

@@ -9,6 +9,7 @@ import { SearchModal, type SearchItem } from "../components/SearchModal"
 import { Spinner } from "../components/Spinner"
 import type { LaunchStep } from "../domain"
 import { duration } from "../lib/format"
+import { getProvider } from "../providers/registry"
 import { TEMPLATES } from "../provisioners/templates"
 import type { ProvisioningProfile } from "../provisioners/types"
 import { useClock } from "../state/clock"
@@ -141,6 +142,8 @@ export function Launch() {
 
   const [zones, setZones] = useState<string[]>(FALLBACK_ZONES)
   const [zonesLoading, setZonesLoading] = useState(true)
+  const [machineItems, setMachineItems] = useState<SearchItem<string>[]>(MACHINES.map((m) => ({ value: m, label: m })))
+  const [machinesLoading, setMachinesLoading] = useState(true)
 
   const provisionItems = useMemo<SearchItem<ProvisioningProfile>[]>(() => {
     const items: SearchItem<ProvisioningProfile>[] = [
@@ -185,6 +188,23 @@ export function Launch() {
       alive = false
     }
   }, [])
+
+  useEffect(() => {
+    let alive = true
+    setMachinesLoading(true)
+    getProvider()
+      .listSizes(zone)
+      .then((sizes) => {
+        if (alive && sizes.length) setMachineItems(sizes)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setMachinesLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [zone])
 
   const buildSpec = (): LaunchSpec => ({
     name: name.trim(),
@@ -254,7 +274,7 @@ export function Launch() {
             <input focused={focus === 0 && !picker} flexGrow={1} placeholder="required" onInput={setName} />
           </Field>
           <PickerField label="ZONE" value={zone} focused={focus === 1} busy={zonesLoading} />
-          <PickerField label="MACHINE" value={machine} focused={focus === 2} />
+          <PickerField label="MACHINE" value={machine} focused={focus === 2} busy={machinesLoading} />
           <PickerField label="IMAGE" value={image.label} focused={focus === 3} />
           <PickerField label="DISK" value={diskLabel(disk)} focused={focus === 4} />
           <PickerField label="FIREWALL" value={firewallLabel} focused={focus === 5} />
@@ -304,8 +324,8 @@ export function Launch() {
       ) : picker === "machine" ? (
         <SearchModal<string>
           title="SELECT MACHINE TYPE"
-          placeholder="filter machine types…"
-          items={MACHINES.map((m) => ({ value: m, label: m }))}
+          placeholder={machinesLoading ? "loading machine types…" : "filter — e2, n2, highmem, cores…"}
+          items={machineItems}
           onPick={setMachine}
           onClose={() => setPicker(null)}
         />

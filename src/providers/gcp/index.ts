@@ -14,15 +14,7 @@ import type {
   SshTarget,
 } from "../types"
 
-const MACHINE_TYPES = [
-  "e2-micro",
-  "e2-small",
-  "e2-medium",
-  "e2-standard-2",
-  "e2-standard-4",
-  "n2-standard-2",
-  "n2-standard-4",
-]
+const gbOf = (mb: number) => `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB`
 
 const IMAGES: Array<{ family: string; project: string }> = [
   { family: "debian-12", project: "debian-cloud" },
@@ -204,8 +196,14 @@ export const gcp: Provider = {
     return scoped.map((z) => ({ value: z, label: z, hint: zoneLocation(z) }))
   },
 
-  async listSizes(): Promise<Choice[]> {
-    return MACHINE_TYPES.map((m) => ({ value: m, label: m }))
+  async listSizes(zone: string): Promise<Choice[]> {
+    const types = await execJSON<Array<{ name: string; guestCpus: number; memoryMb: number }>>([
+      "gcloud", "compute", "machine-types", "list",
+      ...(zone ? [`--zones=${zone}`] : []),
+      "--format=json",
+    ]).catch(() => [])
+    types.sort((a, b) => a.guestCpus - b.guestCpus || a.name.localeCompare(b.name))
+    return types.map((t) => ({ value: t.name, label: t.name, hint: `${t.guestCpus} vCPU · ${gbOf(t.memoryMb)}` }))
   },
 
   async listImages(): Promise<Choice[]> {
