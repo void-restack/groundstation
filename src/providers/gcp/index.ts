@@ -145,6 +145,7 @@ export const gcp: Provider = {
       imageFamily: family,
       imageProject: project,
       userDataFile: spec.extra?.["user-data"],
+      startupScriptFile: spec.extra?.["startup-script"],
       diskSizeGb: spec.diskSizeGb,
       diskType: spec.diskType,
       spot: spec.spot,

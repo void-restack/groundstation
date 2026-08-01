@@ -259,31 +259,37 @@ test("cloud-init resolves the user-provided config file into a user-data payload
   }
 })
 
-test("built-in templates ship ready-to-use cloud-configs (docker, hardened)", () => {
+test("built-in templates are runnable startup scripts (docker, hardened) with a done marker", () => {
   const ids = TEMPLATES.map((t) => t.id)
   expect(ids).toContain("docker")
   expect(ids).toContain("hardened")
-  for (const t of TEMPLATES) expect(t.cloudConfig.startsWith("#cloud-config")).toBe(true)
+  for (const t of TEMPLATES) {
+    expect(t.content.startsWith("#!/bin/bash")).toBe(true)
+    expect(t.content).toContain("GND-PROVISION-DONE")
+  }
 })
 
 test("every ufw-enabling template allows ssh (22) BEFORE enabling — never lock out", () => {
   for (const t of TEMPLATES) {
-    const enable = t.cloudConfig.indexOf("ufw, --force, enable")
+    const enable = t.content.indexOf("ufw --force enable")
     if (enable === -1) continue
-    const allow22 = t.cloudConfig.indexOf("ufw, allow, 22/tcp")
+    const allow22 = t.content.indexOf("ufw allow 22/tcp")
     expect(allow22).toBeGreaterThanOrEqual(0)
     expect(allow22).toBeLessThan(enable)
   }
 })
 
-test("cloud-init materializes inline template content into a user-data file", () => {
-  const payload = getProvisioner("cloud-init").buildCreatePayload!({
-    name: "docker",
-    kind: "cloud-init",
-    userDataContent: TEMPLATES[0]!.cloudConfig,
+test("cloud-init routes a bash recipe to startup-script, a #cloud-config to user-data", () => {
+  const recipe = getProvisioner("cloud-init").buildCreatePayload!({
+    name: "docker", kind: "cloud-init", userDataContent: TEMPLATES[0]!.content,
   })
-  expect(payload.key).toBe("user-data")
-  expect(readFileSync(payload.value, "utf8")).toContain("#cloud-config")
+  expect(recipe.key).toBe("startup-script")
+  expect(readFileSync(recipe.value, "utf8")).toContain("GND-PROVISION-DONE")
+
+  const cloud = getProvisioner("cloud-init").buildCreatePayload!({
+    name: "ci", kind: "cloud-init", userDataContent: "#cloud-config\npackages: [htop]\n",
+  })
+  expect(cloud.key).toBe("user-data")
 })
 
 test("cloud-init rejects a missing user-data file with a clear error", () => {

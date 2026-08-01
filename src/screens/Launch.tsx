@@ -172,9 +172,9 @@ export function Launch() {
     ]
     for (const t of TEMPLATES) {
       items.push({
-        value: { name: t.id, kind: "cloud-init", userDataContent: t.cloudConfig },
+        value: { name: t.id, kind: "cloud-init", userDataContent: t.content },
         label: t.label,
-        hint: "cloud-init",
+        hint: "recipe",
       })
     }
     if (config.cloudInitFile) {

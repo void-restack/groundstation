@@ -82,6 +82,7 @@ export interface CreateInstanceOpts {
   imageFamily: string
   imageProject: string
   userDataFile?: string
+  startupScriptFile?: string
   diskSizeGb?: number
   diskType?: string
   tags?: string[]
@@ -102,7 +103,10 @@ export function createArgs(opts: CreateInstanceOpts): string[] {
   if (opts.diskType) args.push(`--boot-disk-type=${opts.diskType}`)
   if (opts.spot) args.push("--provisioning-model=SPOT")
   if (opts.tags && opts.tags.length) args.push(`--tags=${opts.tags.join(",")}`)
-  if (opts.userDataFile) args.push("--metadata-from-file", `user-data=${opts.userDataFile}`)
+  const mff: string[] = []
+  if (opts.userDataFile) mff.push(`user-data=${opts.userDataFile}`)
+  if (opts.startupScriptFile) mff.push(`startup-script=${opts.startupScriptFile}`)
+  if (mff.length) args.push("--metadata-from-file", mff.join(","))
   return args
 }
 

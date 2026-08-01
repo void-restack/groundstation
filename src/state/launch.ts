@@ -68,8 +68,10 @@ function appendLogLines(lines: string[]) {
   launch.set((s) => ({ ...s, log: [...s.log, ...clean].slice(-MAX_LOG) }))
 }
 
-/** Poll the serial console, streaming new output, until cloud-init reports finished. */
-async function waitCloudInit(inst: Instance, timeoutMs = 600000): Promise<boolean> {
+const DONE_RE = /GND-PROVISION-DONE|finished running startup scripts|cloud-init v[^\n]*finished/i
+
+/** Poll the serial console, streaming new output, until the boot config reports done. */
+async function waitBootConfig(inst: Instance, timeoutMs = 600000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   let seen = 0
   while (Date.now() < deadline) {
@@ -78,7 +80,7 @@ async function waitCloudInit(inst: Instance, timeoutMs = 600000): Promise<boolea
       appendLogLines(out.slice(seen).split("\n"))
       seen = out.length
     }
-    if (/cloud-init v[^\n]*finished/i.test(out)) return true
+    if (DONE_RE.test(out)) return true
     await Bun.sleep(6000)
   }
   return false
@@ -159,16 +161,16 @@ export async function beginLaunch(spec: LaunchSpec) {
     const inst = fleetSnapshot().find((s) => s.name === spec.name)
 
     if (provisioner.injectsAtCreate) {
-      // cloud-init: injected at create, runs at first boot — watch it finish
-      pushStep({ name: "cloud-init (first boot)", role: "cloud-init", state: "running", durationMs: null, detail: null })
-      const done = inst ? await waitCloudInit(inst) : false
+      // injected at create, runs at first boot — watch the serial console for it
+      pushStep({ name: "boot config (first boot)", role: "provision", state: "running", durationMs: null, detail: null })
+      const done = inst ? await waitBootConfig(inst) : false
       resolveLast(done ? "ok" : "changed", done ? undefined : "still running — watch the serial console")
       launch.set((s) => ({ ...s, phase: "succeeded" }))
       cues.success()
       logEvent({
         server: spec.name,
         level: "nominal",
-        message: done ? `${spec.name} in orbit — cloud-init done` : `${spec.name} in orbit — cloud-init running`,
+        message: done ? `${spec.name} in orbit — provisioned` : `${spec.name} in orbit — provisioning`,
       })
       return
     }
