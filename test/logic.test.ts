@@ -279,6 +279,16 @@ test("built-in templates ship ready-to-use cloud-configs (docker, hardened)", ()
   for (const t of TEMPLATES) expect(t.cloudConfig.startsWith("#cloud-config")).toBe(true)
 })
 
+test("every ufw-enabling template allows ssh (22) BEFORE enabling — never lock out", () => {
+  for (const t of TEMPLATES) {
+    const enable = t.cloudConfig.indexOf("ufw, --force, enable")
+    if (enable === -1) continue
+    const allow22 = t.cloudConfig.indexOf("ufw, allow, 22/tcp")
+    expect(allow22).toBeGreaterThanOrEqual(0)
+    expect(allow22).toBeLessThan(enable)
+  }
+})
+
 test("cloud-init materializes inline template content into a user-data file", () => {
   const payload = getProvisioner("cloud-init").buildCreatePayload!({
     name: "docker",
