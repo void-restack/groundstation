@@ -1,5 +1,5 @@
 import { useTerminalDimensions } from "@opentui/react"
-import type { Server } from "../domain"
+import type { Instance } from "../domain"
 import { flightCode } from "../lib/format"
 import { regionLatLng } from "../lib/geo"
 import { isDaylight, isLand, subsolarLongitude } from "../lib/worldmap"
@@ -46,9 +46,9 @@ function buildRows(w: number, h: number, subsolar: number): Cell[][] {
   return rows
 }
 
-function buildMarkers(servers: Server[], w: number, h: number): Marker[] {
-  const byRegion = new Map<string, Server[]>()
-  for (const s of servers) {
+function buildMarkers(instances: Instance[], w: number, h: number): Marker[] {
+  const byRegion = new Map<string, Instance[]>()
+  for (const s of instances) {
     const list = byRegion.get(s.region) ?? []
     list.push(s)
     byRegion.set(s.region, list)
@@ -56,12 +56,12 @@ function buildMarkers(servers: Server[], w: number, h: number): Marker[] {
   const markers: Marker[] = []
   for (const [region, list] of byRegion) {
     const [lat, lng] = regionLatLng(region)
-    const degraded = list.some((s) => s.status !== "RUNNING")
+    const degraded = list.some((s) => s.state !== "running")
     markers.push({
       col: Math.round(((lng + 180) / 360) * (w - 1)),
       row: Math.round(((90 - lat) / 180) * (h - 1)),
       color: degraded ? palette.caution : palette.nominal,
-      code: flightCode(list[0]!.zone).split("·")[0]!,
+      code: flightCode(list[0]!.zone ?? "").split("·")[0]!,
     })
   }
   return markers
@@ -85,14 +85,14 @@ function Row({ cells }: { cells: Cell[] }) {
   )
 }
 
-export function WorldMap({ servers }: { servers: Server[] }) {
+export function WorldMap({ instances }: { instances: Instance[] }) {
   const { width, height } = useTerminalDimensions()
   const w = Math.max(40, Math.min(width - 48, 130))
   const h = Math.max(12, Math.min(height - 14, 32))
   const subsolar = subsolarLongitude()
 
   const rows = buildRows(w, h, subsolar)
-  const markers = buildMarkers(servers, w, h)
+  const markers = buildMarkers(instances, w, h)
 
   return (
     <box alignItems="center" justifyContent="center" flexGrow={1}>

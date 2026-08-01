@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import { sshCommand } from "../adapters/ssh"
-import type { Server } from "../domain"
+import type { Instance } from "../domain"
 import { elapsed } from "../lib/format"
 import { hardenedVisual, statusVisual } from "../lib/status"
 import { useClock } from "../state/clock"
@@ -16,9 +16,9 @@ function Field({ label, value, color }: { label: string; value: string; color?: 
   )
 }
 
-export function Glass({ server }: { server: Server | null }) {
+export function Glass({ instance }: { instance: Instance | null }) {
   const now = useClock()
-  if (!server) {
+  if (!instance) {
     return (
       <box
         flexGrow={1}
@@ -36,9 +36,9 @@ export function Glass({ server }: { server: Server | null }) {
     )
   }
 
-  const status = statusVisual(server.status)
-  const chip = hardenedVisual(server.hardened)
-  const ssh = sshCommand(server)
+  const status = statusVisual(instance.state)
+  const chip = hardenedVisual(instance.hardened)
+  const ssh = sshCommand(instance)
 
   return (
     <box
@@ -54,19 +54,19 @@ export function Glass({ server }: { server: Server | null }) {
       gap={1}
     >
       <box flexDirection="row" gap={1} alignItems="center">
-        <StatusLamp status={server.status} />
+        <StatusLamp state={instance.state} />
         <text fg={palette.starlight} attributes={TextAttributes.BOLD}>
-          {server.name}
+          {instance.name}
         </text>
         <text fg={status.color}>{glyph.sep} {status.label}</text>
       </box>
 
       <box flexDirection="column">
-        <Field label="REGION" value={`${server.region}  ${server.flightCode}`} />
-        <Field label="MACHINE" value={server.machineType} />
-        <Field label="EXTERNAL" value={server.externalIp ?? "—"} color={palette.downlink} />
-        <Field label="INTERNAL" value={server.internalIp ?? "—"} />
-        <Field label="MET" value={elapsed(server.createdAt, now)} />
+        <Field label="REGION" value={`${instance.region}  ${instance.flightCode}`} />
+        <Field label="MACHINE" value={instance.size} />
+        <Field label="EXTERNAL" value={instance.externalIp ?? "—"} color={palette.downlink} />
+        <Field label="INTERNAL" value={instance.internalIp ?? "—"} />
+        <Field label="MET" value={elapsed(instance.createdAt, now)} />
         <Field label="HARDENED" value={chip.text} color={chip.color} />
       </box>
 

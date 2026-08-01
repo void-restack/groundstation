@@ -1,15 +1,15 @@
 import { useKeyboard } from "@opentui/react"
 import { StatusLamp } from "../components/StatusLamp"
 import { WorldMap } from "../components/WorldMap"
-import type { Server } from "../domain"
+import type { Instance } from "../domain"
 import { flightCode } from "../lib/format"
 import { useFleet } from "../state/fleet"
 import { setScreen } from "../state/ui"
 import { glyph, palette } from "../theme"
 
-function groupByRegion(servers: Server[]): Map<string, Server[]> {
-  const map = new Map<string, Server[]>()
-  for (const s of servers) {
+function groupByRegion(instances: Instance[]): Map<string, Instance[]> {
+  const map = new Map<string, Instance[]>()
+  for (const s of instances) {
     const list = map.get(s.region) ?? []
     list.push(s)
     map.set(s.region, list)
@@ -18,14 +18,14 @@ function groupByRegion(servers: Server[]): Map<string, Server[]> {
 }
 
 export function Orbit() {
-  const { servers } = useFleet()
+  const { instances } = useFleet()
   useKeyboard((key) => {
     if (key.name === "escape" || key.name === "o") setScreen("board")
   })
 
-  const regions = [...groupByRegion(servers).entries()].sort((a, b) => b[1].length - a[1].length)
+  const regions = [...groupByRegion(instances).entries()].sort((a, b) => b[1].length - a[1].length)
   const top = regions[0]
-  const concentration = top && servers.length > 1 && top[1].length / servers.length >= 0.6
+  const concentration = top && instances.length > 1 && top[1].length / instances.length >= 0.6
 
   return (
     <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.void}>
@@ -33,7 +33,7 @@ export function Orbit() {
 
       {concentration && top ? (
         <text fg={palette.caution}>
-          ⚠ {top[1].length} of {servers.length} vessels share {top[0]} {glyph.sep} correlated-failure risk
+          ⚠ {top[1].length} of {instances.length} vessels share {top[0]} {glyph.sep} correlated-failure risk
         </text>
       ) : null}
 
@@ -47,7 +47,7 @@ export function Orbit() {
           titleAlignment="left"
           titleColor={palette.static}
         >
-          <WorldMap servers={servers} />
+          <WorldMap instances={instances} />
         </box>
 
         <box
@@ -66,10 +66,10 @@ export function Orbit() {
               <text fg={palette.downlink}>{region} ({list.length})</text>
               {list.map((s) => (
                 <box key={s.id} flexDirection="row" gap={1}>
-                  <StatusLamp status={s.status} />
+                  <StatusLamp state={s.state} />
                   <text fg={palette.starlight}>{s.name}</text>
                   <box flexGrow={1} />
-                  <text fg={palette.static}>{flightCode(s.zone)}</text>
+                  <text fg={palette.static}>{flightCode(s.zone ?? "")}</text>
                 </box>
               ))}
             </box>

@@ -26,13 +26,13 @@ const HINTS = [
 ]
 
 export function Board() {
-  const { servers, loading } = useFleet()
+  const { instances, loading } = useFleet()
   const { selected, paletteOpen, toolsOpen } = useUI()
   const events = useEvents()
   const renderer = useRenderer()
 
-  const names = servers.map((s) => s.name)
-  const current = servers.find((s) => s.name === selected) ?? null
+  const names = instances.map((s) => s.name)
+  const current = instances.find((s) => s.name === selected) ?? null
 
   useEffect(() => {
     ensureSelection(names)
@@ -77,15 +77,15 @@ export function Board() {
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={palette.void}>
-      <TopBar fleetSize={servers.length} />
-      <Overview servers={servers} />
+      <TopBar fleetSize={instances.length} />
+      <Overview instances={instances} />
       <box flexDirection="row" flexGrow={1}>
-        <FleetRail servers={servers} selected={selected} />
-        <Glass server={current} />
+        <FleetRail instances={instances} selected={selected} />
+        <Glass instance={current} />
         <Ticker events={events} />
       </box>
       <KeyStrip hints={HINTS} />
-      {loading && servers.length === 0 ? (
+      {loading && instances.length === 0 ? (
         <text fg={palette.static}> acquiring fleet…</text>
       ) : null}
     </box>

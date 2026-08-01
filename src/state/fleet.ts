@@ -1,20 +1,20 @@
 import { config } from "../config"
-import type { FleetEvent, HardenedState, Server, ServerStatus } from "../domain"
-import { currentProject, fetchFleet } from "../adapters/gcloud"
+import type { FleetEvent, HardenedState, Instance, InstanceState } from "../domain"
+import { getProvider } from "../providers/registry"
 import { probeHardened } from "../adapters/ssh"
 import { summarizeError } from "../lib/errors"
 import { createStore, useStore } from "../lib/store"
 import { pushToast } from "./toast"
 
 interface FleetState {
-  servers: Server[]
+  instances: Instance[]
   loading: boolean
   error: string | null
   lastSync: Date | null
 }
 
 const fleet = createStore<FleetState>({
-  servers: [],
+  instances: [],
   loading: true,
   error: null,
   lastSync: null,
@@ -35,14 +35,14 @@ const hardenedCache = new Map<string, { state: HardenedState; at: number }>()
 const PROBE_TTL = 180000
 let probing = false
 
-const applyHardened = (servers: Server[]): Server[] =>
-  servers.map((s) => ({ ...s, hardened: hardenedCache.get(s.id)?.state ?? "unknown" }))
+const applyHardened = (instances: Instance[]): Instance[] =>
+  instances.map((s) => ({ ...s, hardened: hardenedCache.get(s.id)?.state ?? "unknown" }))
 
-async function probeFleet(servers: Server[]) {
+async function probeFleet(instances: Instance[]) {
   if (probing) return
   probing = true
   const cutoff = Date.now() - PROBE_TTL
-  const stale = servers.filter((s) => s.externalIp && (hardenedCache.get(s.id)?.at ?? 0) < cutoff)
+  const stale = instances.filter((s) => s.externalIp && (hardenedCache.get(s.id)?.at ?? 0) < cutoff)
   const CONCURRENCY = 4
   for (let i = 0; i < stale.length; i += CONCURRENCY) {
     await Promise.all(
@@ -51,40 +51,40 @@ async function probeFleet(servers: Server[]) {
         hardenedCache.set(s.id, { state: ok ? "hardened" : "soft", at: Date.now() })
       }),
     )
-    fleet.set((prev) => ({ ...prev, servers: applyHardened(prev.servers) }))
+    fleet.set((prev) => ({ ...prev, instances: applyHardened(prev.instances) }))
   }
   probing = false
 }
 
-let prevStatus: Map<string, { status: ServerStatus; name: string }> | null = null
+let prevState: Map<string, { state: InstanceState; name: string }> | null = null
 
-function diffAndLog(servers: Server[]) {
-  const next = new Map(servers.map((s) => [s.id, { status: s.status, name: s.name }]))
-  if (prevStatus === null) {
-    prevStatus = next
+function diffAndLog(instances: Instance[]) {
+  const next = new Map(instances.map((s) => [s.id, { state: s.state, name: s.name }]))
+  if (prevState === null) {
+    prevState = next
     return
   }
-  for (const s of servers) {
-    const prev = prevStatus.get(s.id)
+  for (const s of instances) {
+    const prev = prevState.get(s.id)
     if (!prev) {
       logEvent({ server: s.name, level: "nominal", message: "vessel appeared" })
-    } else if (prev.status !== s.status) {
-      const level = s.status === "RUNNING" ? "nominal" : s.status === "TERMINATED" ? "flare" : "caution"
-      logEvent({ server: s.name, level, message: `${prev.status.toLowerCase()} → ${s.status.toLowerCase()}` })
+    } else if (prev.state !== s.state) {
+      const level = s.state === "running" ? "nominal" : s.state === "terminated" ? "flare" : "caution"
+      logEvent({ server: s.name, level, message: `${prev.state} → ${s.state}` })
     }
   }
-  for (const [id, prev] of prevStatus) {
+  for (const [id, prev] of prevState) {
     if (!next.has(id)) logEvent({ server: prev.name, level: "caution", message: "vessel gone" })
   }
-  prevStatus = next
+  prevState = next
 }
 
 export async function refreshFleet() {
   try {
-    const servers = applyHardened(await fetchFleet())
-    diffAndLog(servers)
-    fleet.set({ servers, loading: false, error: null, lastSync: new Date() })
-    void probeFleet(servers)
+    const instances = applyHardened(await getProvider().listInstances())
+    diffAndLog(instances)
+    fleet.set({ instances, loading: false, error: null, lastSync: new Date() })
+    void probeFleet(instances)
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err)
     const changed = raw !== fleet.get().error
@@ -103,8 +103,9 @@ let poller: ReturnType<typeof setInterval> | null = null
 export function startFleetPolling() {
   if (poller) return
   void refreshFleet()
-  void currentProject()
-    .then((p) => project.set(p))
+  void getProvider()
+    .account()
+    .then((a) => project.set(a.value))
     .catch(() => {})
   poller = setInterval(() => void refreshFleet(), config.pollIntervalMs)
   poller.unref?.()
@@ -113,4 +114,4 @@ export function startFleetPolling() {
 export const useFleet = () => useStore(fleet)
 export const useEvents = () => useStore(events)
 export const useProject = () => useStore(project)
-export const fleetSnapshot = () => fleet.get().servers
+export const fleetSnapshot = () => fleet.get().instances

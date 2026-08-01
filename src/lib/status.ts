@@ -1,4 +1,4 @@
-import type { HardenedState, ServerStatus } from "../domain"
+import type { HardenedState, InstanceState } from "../domain"
 import { palette } from "../theme"
 
 export interface StatusVisual {
@@ -7,21 +7,23 @@ export interface StatusVisual {
   label: string
 }
 
-export function statusVisual(status: ServerStatus): StatusVisual {
-  switch (status) {
-    case "RUNNING":
+export function statusVisual(state: InstanceState): StatusVisual {
+  switch (state) {
+    case "running":
       return { color: palette.nominal, breathMs: 4000, label: "NOMINAL" }
-    case "PROVISIONING":
+    case "provisioning":
       return { color: palette.caution, breathMs: 1500, label: "SPINNING UP" }
-    case "STAGING":
-      return { color: palette.caution, breathMs: 1500, label: "STAGING" }
-    case "REPAIRING":
+    case "starting":
+      return { color: palette.caution, breathMs: 1500, label: "STARTING" }
+    case "repairing":
       return { color: palette.caution, breathMs: 1200, label: "REPAIRING" }
-    case "STOPPING":
+    case "stopping":
       return { color: palette.caution, breathMs: null, label: "STOPPING" }
-    case "SUSPENDED":
+    case "suspended":
       return { color: palette.static, breathMs: null, label: "SUSPENDED" }
-    case "TERMINATED":
+    case "stopped":
+      return { color: palette.static, breathMs: null, label: "STOPPED" }
+    case "terminated":
       return { color: palette.flare, breathMs: null, label: "TERMINATED" }
     default:
       return { color: palette.static, breathMs: null, label: "UNKNOWN" }

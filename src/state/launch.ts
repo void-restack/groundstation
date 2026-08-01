@@ -81,8 +81,8 @@ async function settle(name: string, timeoutMs = 120000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     await refreshFleet()
-    const server = fleetSnapshot().find((s) => s.name === name)
-    if (server && server.status === "RUNNING" && server.externalIp) return true
+    const inst = fleetSnapshot().find((s) => s.name === name)
+    if (inst && inst.state === "running" && inst.externalIp) return true
     await Bun.sleep(4000)
   }
   return false

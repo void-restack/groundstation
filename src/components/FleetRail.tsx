@@ -1,12 +1,12 @@
-import type { Server } from "../domain"
+import type { Instance } from "../domain"
 import { palette } from "../theme"
 import { FleetCard } from "./FleetCard"
 
 export function FleetRail({
-  servers,
+  instances,
   selected,
 }: {
-  servers: Server[]
+  instances: Instance[]
   selected: string | null
 }) {
   return (
@@ -25,8 +25,8 @@ export function FleetRail({
       </box>
       <scrollbox flexGrow={1}>
         <box flexDirection="column">
-          {servers.map((s) => (
-            <FleetCard key={s.id} server={s} selected={s.name === selected} />
+          {instances.map((s) => (
+            <FleetCard key={s.id} instance={s} selected={s.name === selected} />
           ))}
         </box>
       </scrollbox>

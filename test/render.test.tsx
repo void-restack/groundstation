@@ -6,6 +6,7 @@ import { Glass } from "../src/components/Glass"
 import { LogView } from "../src/components/LogView"
 import { SearchModal } from "../src/components/SearchModal"
 import { ToolsModal } from "../src/components/ToolsModal"
+import { serverToInstance } from "../src/providers/gcp"
 import type { Server } from "../src/domain"
 
 const server: Server = {
@@ -21,9 +22,10 @@ const server: Server = {
   createdAt: new Date(0),
   hardened: "hardened",
 }
+const instance = serverToInstance(server, "demo-project")
 
 test("FleetCard shows the vessel name and machine type", async () => {
-  const setup = await testRender(<FleetCard server={server} selected />, { width: 34, height: 4 })
+  const setup = await testRender(<FleetCard instance={instance} selected />, { width: 34, height: 4 })
   try {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
@@ -35,7 +37,7 @@ test("FleetCard shows the vessel name and machine type", async () => {
 })
 
 test("Glass renders telemetry for the selected vessel", async () => {
-  const setup = await testRender(<Glass server={server} />, { width: 50, height: 16 })
+  const setup = await testRender(<Glass instance={instance} />, { width: 50, height: 16 })
   try {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()

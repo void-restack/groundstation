@@ -16,11 +16,11 @@ interface Command {
 export function CommandPalette() {
   const [query, setQuery] = useState("")
   const [index, setIndex] = useState(0)
-  const { servers } = useFleet()
+  const { instances } = useFleet()
   const { selected } = useUI()
   const renderer = useRenderer()
 
-  const current = servers.find((s) => s.name === selected) ?? null
+  const current = instances.find((s) => s.name === selected) ?? null
 
   const commands = useMemo<Command[]>(
     () => [

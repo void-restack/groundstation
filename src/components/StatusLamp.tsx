@@ -1,4 +1,4 @@
-import type { ServerStatus } from "../domain"
+import type { InstanceState } from "../domain"
 import { lerpHex } from "../lib/color"
 import { statusVisual } from "../lib/status"
 import { pulse, useClock } from "../state/clock"
@@ -10,8 +10,8 @@ function BreathingLamp({ color, breathMs }: { color: string; breathMs: number })
   return <text fg={lerpHex(dim, color, pulse(now, breathMs))}>{glyph.lamp}</text>
 }
 
-export function StatusLamp({ status }: { status: ServerStatus }) {
-  const { color, breathMs } = statusVisual(status)
+export function StatusLamp({ state }: { state: InstanceState }) {
+  const { color, breathMs } = statusVisual(state)
   if (breathMs === null) return <text fg={color}>{glyph.lamp}</text>
   return <BreathingLamp color={color} breathMs={breathMs} />
 }
