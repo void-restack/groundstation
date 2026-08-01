@@ -12,7 +12,6 @@ export interface PersistedConfig {
   schemaVersion: number
   ansibleDir: string | null
   provisionPlaybook: string
-  updatePlaybook: string
   bootstrapUser: string | null
   deployUser: string | null
   sshKey: string | null
@@ -25,7 +24,6 @@ export interface PersistedConfig {
 export interface Config {
   ansibleDir: string | null
   provisionPlaybook: string
-  updatePlaybook: string
   bootstrapUser: string
   deployUser: string
   sshKey: string | null
@@ -38,8 +36,6 @@ export interface Config {
 export interface Capabilities {
   /** ansible dir + provision playbook present → the Launch flow can run */
   canProvision: boolean
-  /** ansible dir + update playbook present → the constellation sweep can run */
-  canUpdate: boolean
   /** a non-empty authorized_keys file exists → `serve` can accept uplinks */
   canServe: boolean
 }
@@ -48,7 +44,6 @@ const DEFAULT_PERSISTED: PersistedConfig = {
   schemaVersion: 1,
   ansibleDir: null,
   provisionPlaybook: "playbooks/provision-server.yml",
-  updatePlaybook: "playbooks/update-all.yml",
   bootstrapUser: null,
   deployUser: null,
   sshKey: null,
@@ -99,7 +94,6 @@ export function resolveConfig(p: PersistedConfig): Config {
   return {
     ansibleDir: expandHome(process.env.GND_ANSIBLE_DIR ?? p.ansibleDir ?? null),
     provisionPlaybook: process.env.GND_PROVISION_PLAYBOOK ?? p.provisionPlaybook,
-    updatePlaybook: process.env.GND_UPDATE_PLAYBOOK ?? p.updatePlaybook,
     bootstrapUser: process.env.GND_BOOTSTRAP_USER ?? p.bootstrapUser ?? user,
     deployUser: process.env.GND_DEPLOY_USER ?? p.deployUser ?? user,
     sshKey: expandHome(process.env.GND_SSH_KEY ?? p.sshKey ?? null),
@@ -122,7 +116,6 @@ export function computeCapabilities(c: Config): Capabilities {
   }
   return {
     canProvision: has(c.provisionPlaybook),
-    canUpdate: has(c.updatePlaybook),
     canServe,
   }
 }

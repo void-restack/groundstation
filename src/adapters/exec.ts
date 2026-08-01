@@ -23,6 +23,8 @@ export async function execJSON<T>(cmd: string[], cwd?: string): Promise<T> {
 export interface StreamOptions {
   cwd?: string
   env?: Record<string, string>
+  /** fed to the process stdin then closed — e.g. a script piped into `ssh … bash -s`. */
+  stdin?: string
 }
 
 export async function streamLines(
@@ -33,6 +35,7 @@ export async function streamLines(
   const proc = Bun.spawn(cmd, {
     cwd: opts.cwd,
     env: opts.env ? { ...process.env, ...opts.env } : process.env,
+    stdin: opts.stdin != null ? new TextEncoder().encode(opts.stdin) : "ignore",
     stdout: "pipe",
     stderr: "pipe",
   })

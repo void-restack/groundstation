@@ -20,7 +20,6 @@ const basePersisted: PersistedConfig = {
   schemaVersion: 1,
   ansibleDir: null,
   provisionPlaybook: "playbooks/provision-server.yml",
-  updatePlaybook: "playbooks/update-all.yml",
   bootstrapUser: null,
   deployUser: null,
   sshKey: null,
@@ -114,11 +113,10 @@ test("resolveConfig expands ~ in ansibleDir so a tilde path enables provisioning
   })
 })
 
-test("computeCapabilities: no ansible dir disables provisioning + sweep", () => {
+test("computeCapabilities: no ansible dir disables provisioning", () => {
   withEnv({ GND_ANSIBLE_DIR: undefined }, () => {
     const caps = computeCapabilities(resolveConfig(basePersisted))
     expect(caps.canProvision).toBe(false)
-    expect(caps.canUpdate).toBe(false)
   })
 })
 
@@ -260,11 +258,23 @@ test("runOp reports success, captures thrown errors as failure", async () => {
 })
 
 test("provisioner registry: none is a no-op, cloud-init injects at create", () => {
-  expect(registeredProvisioners().map((p) => p.kind).sort()).toEqual(["cloud-init", "none"])
+  expect(registeredProvisioners().map((p) => p.kind).sort()).toEqual([
+    "cloud-init", "command", "none", "shell",
+  ])
   const none = getProvisioner("none")
   expect(none.injectsAtCreate).toBe(false)
   expect(none.buildCreatePayload).toBeUndefined()
   expect(getProvisioner("cloud-init").injectsAtCreate).toBe(true)
+  expect(getProvisioner("shell").requiresTool).toBe("ssh")
+})
+
+test("shell provisioner fails cleanly when the profile has no script", async () => {
+  const inst = serverToInstance(fakeServer(), "p")
+  const ok = await getProvisioner("shell").run!(
+    { instance: inst, profile: { name: "x", kind: "shell" }, provider: getProvider() },
+    () => {},
+  )
+  expect(ok).toBe(false)
 })
 
 test("cloud-init reads the user-provided config file into a user-data payload", () => {

@@ -13,7 +13,6 @@ import { confirmActive } from "../state/confirm"
 import { detailActive } from "../state/detail"
 import { logEvent, refreshFleet, useEvents, useFleet } from "../state/fleet"
 import { opActive } from "../state/oprunner"
-import { updateAll } from "../state/ops"
 import { ensureSelection, moveSelection, setActionMenu, setPalette, setScreen, setTools, useUI } from "../state/ui"
 import { palette } from "../theme"
 
@@ -21,7 +20,6 @@ const HINTS = [
   { key: "↑↓", label: "select" },
   { key: "⏎", label: "actions" },
   { key: "P", label: "rovision" },
-  { key: "U", label: "pdate all" },
   { key: "S", label: "sh" },
   { key: "O", label: "rbit" },
   { key: ",", label: "settings" },
@@ -65,8 +63,6 @@ export function Board() {
         return setScreen("launch")
       case "o":
         return setScreen("orbit")
-      case "u":
-        return void updateAll()
       case "s":
         if (current?.externalIp) {
           logEvent({ server: current.name, level: "info", message: `uplink → ${current.name}` })

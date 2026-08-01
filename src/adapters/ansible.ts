@@ -69,13 +69,3 @@ export function runProvision(
     { cwd: dir, env: ANSIBLE_ENV },
   ).then((codeCbk) => codeCbk === 0)
 }
-
-export function runUpdateAll(onEvent: (e: ProvisionEvent) => void): Promise<boolean> {
-  const dir = config.ansibleDir
-  if (!dir) return Promise.resolve(false)
-  return streamLines(
-    ["ansible-playbook", config.updatePlaybook],
-    (line) => onEvent(parseLine(line) ?? { type: "log", line }),
-    { cwd: dir, env: ANSIBLE_ENV },
-  ).then((code) => code === 0)
-}

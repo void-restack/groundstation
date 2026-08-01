@@ -4,7 +4,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { uplink } from "../adapters/ssh"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
-import { updateAll } from "../state/ops"
 import { setPalette, setProjectSwitch, setScreen, setTools, useUI } from "../state/ui"
 import { glyph, palette } from "../theme"
 
@@ -49,7 +48,6 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(
     () => [
       { id: "provision", title: "Provision a new vessel", run: () => setScreen("launch") },
-      { id: "update", title: "Update all — constellation sweep", run: () => void updateAll() },
       {
         id: "ssh",
         title: current ? `Uplink → ${current.name}` : "Uplink (select a vessel first)",

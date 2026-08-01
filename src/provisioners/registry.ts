@@ -1,10 +1,13 @@
 import { cloudInit } from "./cloudinit"
 import { none } from "./none"
+import { command, shell } from "./shell"
 import type { Provisioner, ProvisionerKind } from "./types"
 
 const REGISTRY = new Map<ProvisionerKind, Provisioner>([
   [none.kind, none],
   [cloudInit.kind, cloudInit],
+  [shell.kind, shell],
+  [command.kind, command],
 ])
 
 export function getProvisioner(kind: ProvisionerKind): Provisioner {
