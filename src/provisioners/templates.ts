@@ -22,7 +22,6 @@ runcmd:
 
 const HARDENED = `#cloud-config
 package_update: true
-package_upgrade: true
 packages:
   - fail2ban
   - ufw
@@ -44,7 +43,6 @@ runcmd:
 
 const DOCKER_HARDENED = `#cloud-config
 package_update: true
-package_upgrade: true
 packages:
   - docker.io
   - fail2ban

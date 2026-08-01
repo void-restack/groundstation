@@ -65,7 +65,7 @@ function appendLogLines(lines: string[]) {
 }
 
 /** Poll the serial console, streaming new output, until cloud-init reports finished. */
-async function waitCloudInit(inst: Instance, timeoutMs = 300000): Promise<boolean> {
+async function waitCloudInit(inst: Instance, timeoutMs = 600000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   let seen = 0
   while (Date.now() < deadline) {
