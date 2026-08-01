@@ -20,7 +20,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.14"
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun build --compile --minify ./src/index.tsx --outfile gnd-${{ matrix.target }}${{ matrix.ext }}
       - run: ./gnd-${{ matrix.target }}${{ matrix.ext }} --version
       - uses: actions/upload-artifact@v6
@@ -39,7 +39,7 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: dist/gnd-*
           generate_release_notes: true
