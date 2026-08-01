@@ -7,6 +7,7 @@ import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
 import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/providers/registry"
 import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
+import { zoneLocation } from "../src/lib/geo"
 import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
 import type { Server } from "../src/domain"
@@ -252,6 +253,13 @@ test("runOp reports success, captures thrown errors as failure", async () => {
     throw new Error("boom")
   })
   expect(bad).toBe(false)
+})
+
+test("zoneLocation maps a zone to its city so pickers are searchable by name", () => {
+  expect(zoneLocation("asia-south1-a")).toBe("Mumbai")
+  expect(zoneLocation("us-central1-b")).toBe("Iowa")
+  expect(zoneLocation("europe-west2-c")).toBe("London")
+  expect(zoneLocation("nonexistent-zone-x")).toBeUndefined()
 })
 
 test("lifecycleArgs builds a zoned, --quiet gcloud command (no TTY prompt)", () => {

@@ -3,6 +3,7 @@ import type { Instance, InstanceState, Server, ServerStatus } from "../../domain
 import { exec } from "../../adapters/exec"
 import { createInstance, currentProject, fetchFleet, listZones } from "../../adapters/gcloud"
 import { regionOf } from "../../lib/format"
+import { regionLocation, zoneLocation } from "../../lib/geo"
 import type {
   AccountContext,
   Choice,
@@ -153,13 +154,13 @@ export const gcp: Provider = {
 
   async listRegions(): Promise<Choice[]> {
     const regions = [...new Set((await listZones()).map(regionOf))].sort()
-    return regions.map((r) => ({ value: r, label: r }))
+    return regions.map((r) => ({ value: r, label: r, hint: regionLocation(r) }))
   },
 
   async listZones(region: string): Promise<Choice[]> {
     const zones = await listZones()
     const scoped = region ? zones.filter((z) => z.startsWith(`${region}-`)) : zones
-    return scoped.map((z) => ({ value: z, label: z }))
+    return scoped.map((z) => ({ value: z, label: z, hint: zoneLocation(z) }))
   },
 
   async listSizes(): Promise<Choice[]> {

@@ -1,6 +1,6 @@
 import { useKeyboard } from "@opentui/react"
 import fuzzysort from "fuzzysort"
-import { useMemo, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { glyph, palette } from "../theme"
 import { Dialog } from "./Dialog"
 
@@ -14,9 +14,29 @@ export interface SearchItem<T> {
 const VISIBLE = 8
 
 /**
+ * The query input, isolated behind memo so re-rendering the result list (which
+ * happens on every keystroke) never reconciles the live <input>. Without this,
+ * fast typing drops characters because the input is torn down mid-keystroke.
+ */
+const SearchInput = memo(function SearchInput({
+  placeholder,
+  onInput,
+}: {
+  placeholder: string
+  onInput: (v: string) => void
+}) {
+  return (
+    <box flexDirection="row" gap={1}>
+      <text fg={palette.beacon}>{glyph.arrowRight}</text>
+      <input focused placeholder={placeholder} onInput={onInput} />
+    </box>
+  )
+})
+
+/**
  * A fuzzy-search picker in a modal: a focused query input over a live-filtered,
  * keyboard-navigable list. Enter picks and closes; escape (via Dialog) cancels.
- * The input keeps ←/→ for its cursor because we only handle ↑/↓/enter here.
+ * Search matches both the label and the hint (e.g. a zone's city).
  */
 export function SearchModal<T>({
   title,
@@ -34,10 +54,15 @@ export function SearchModal<T>({
   const [query, setQuery] = useState("")
   const [index, setIndex] = useState(0)
 
+  const onInput = useCallback((v: string) => {
+    setQuery(v)
+    setIndex(0)
+  }, [])
+
   const filtered = useMemo(() => {
     const q = query.trim()
     if (!q) return items
-    return fuzzysort.go(q, items, { key: "label", limit: 200 }).map((r) => r.obj)
+    return fuzzysort.go(q, items, { keys: ["label", "hint"], limit: 200 }).map((r) => r.obj)
   }, [query, items])
 
   const clamped = Math.min(index, Math.max(0, filtered.length - 1))
@@ -67,17 +92,7 @@ export function SearchModal<T>({
 
   return (
     <Dialog title={title} onClose={onClose} footer={footer} width="60%">
-      <box flexDirection="row" gap={1}>
-        <text fg={palette.beacon}>{glyph.arrowRight}</text>
-        <input
-          focused
-          placeholder={placeholder}
-          onInput={(v) => {
-            setQuery(v)
-            setIndex(0)
-          }}
-        />
-      </box>
+      <SearchInput placeholder={placeholder} onInput={onInput} />
       <box flexDirection="column" height={rows}>
         {filtered.length === 0 ? (
           <text fg={palette.static}>no matches</text>

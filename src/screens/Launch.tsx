@@ -1,6 +1,7 @@
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useState } from "react"
 import { listZones } from "../adapters/gcloud"
+import { zoneLocation } from "../lib/geo"
 import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
 import { SearchModal, type SearchItem } from "../components/SearchModal"
@@ -238,8 +239,8 @@ export function Launch() {
       {picker === "zone" ? (
         <SearchModal<string>
           title="SELECT ZONE"
-          placeholder={zonesLoading ? "loading zones…" : "filter zones…"}
-          items={zones.map((z) => ({ value: z, label: z }))}
+          placeholder={zonesLoading ? "loading zones…" : "filter by zone or city…"}
+          items={zones.map((z) => ({ value: z, label: z, hint: zoneLocation(z) }))}
           onPick={setZone}
           onClose={() => setPicker(null)}
         />

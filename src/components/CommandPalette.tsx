@@ -1,5 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
-import { useMemo, useState } from "react"
+import { memo, useMemo, useState } from "react"
 import { uplink } from "../adapters/ssh"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
@@ -12,6 +12,16 @@ interface Command {
   title: string
   run: () => void
 }
+
+/** Isolated behind memo so re-rendering the command list never reconciles the live input. */
+const PaletteInput = memo(function PaletteInput({ onInput }: { onInput: (v: string) => void }) {
+  return (
+    <box flexDirection="row" gap={1}>
+      <text fg={palette.beacon}>{glyph.arrowRight}</text>
+      <input focused placeholder="type a command…" onInput={onInput} />
+    </box>
+  )
+})
 
 export function CommandPalette() {
   const [query, setQuery] = useState("")
@@ -87,10 +97,7 @@ export function CommandPalette() {
       gap={1}
       zIndex={100}
     >
-      <box flexDirection="row" gap={1}>
-        <text fg={palette.beacon}>{glyph.arrowRight}</text>
-        <input focused placeholder="type a command…" onInput={setQuery} />
-      </box>
+      <PaletteInput onInput={setQuery} />
       <box flexDirection="column">
         {filtered.length === 0 ? (
           <text fg={palette.static}>no matches</text>
