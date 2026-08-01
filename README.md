@@ -8,8 +8,7 @@ Mission control for a cloud fleet — a terminal command center over `gcloud` an
 Every VM is a satellite, provisioning is a launch sequence, SSH is an uplink; a healthy fleet is an
 almost-still screen where motion is information.
 
-Built with [OpenTUI](https://github.com/sst/opentui) and React on [Bun](https://bun.sh), themed from
-real [btop](https://github.com/aristocratos/btop) `.theme` files.
+Built with [OpenTUI](https://github.com/sst/opentui) and React on [Bun](https://bun.sh).
 
 > [!NOTE]
 > Targets GCP + Ansible today. Multi-cloud and pluggable provisioning are on the [roadmap](#roadmap).
@@ -128,20 +127,8 @@ defaults are personal or machine-specific.
 | `GND_AUTHORIZED_KEYS` | `authorizedKeys` | `~/.ssh/authorized_keys` | Authorized keys for `serve` mode |
 | `GND_POLL_MS` | `pollIntervalMs` | `15000` | Fleet refresh interval (ms) |
 | `GND_PORT` | `port` | `2222` | Port for `serve` mode |
-| `GND_BTOP_THEME` | – | – | Named theme under `~/.config/btop/themes/` |
-| `GND_THEME` | – | – | Absolute path to a btop `.theme` file |
 
 </details>
-
-### Theming
-
-The entire palette, including the meter gradients, is derived from a btop theme, so it matches
-whatever you already run. It ships with a built-in `tokyo-night` default.
-
-```bash
-GND_BTOP_THEME=tokyo-night gnd      # from ~/.config/btop/themes/tokyo-night.theme
-GND_THEME=/path/to/custom.theme gnd # any btop .theme file
-```
 
 ### Serve over SSH
 
