@@ -90,10 +90,6 @@ async function settle(name: string, timeoutMs = 120000): Promise<boolean> {
 
 export async function beginLaunch(spec: LaunchSpec) {
   if (running) return
-  if (!capabilities.canProvision) {
-    logEvent({ server: spec.name, level: "caution", message: "provisioning needs an ansible playbook dir — settings [ , ] → ANSIBLE" })
-    return
-  }
   running = true
   launch.set({ ...initial, phase: "running", target: spec.name })
   logEvent({ server: spec.name, level: "info", message: `launch sequence: ${spec.name}` })
@@ -113,6 +109,13 @@ export async function beginLaunch(spec: LaunchSpec) {
     const up = await settle(spec.name)
     resolveLast(up ? "ok" : "failed")
     if (!up) throw new Error("vessel did not reach RUNNING with an external IP")
+
+    if (!capabilities.canProvision) {
+      launch.set((s) => ({ ...s, phase: "succeeded" }))
+      cues.success()
+      logEvent({ server: spec.name, level: "nominal", message: `${spec.name} in orbit (bare)` })
+      return
+    }
 
     const tasks = await listTasks(spec.name).catch(() => [])
     launch.set((s) => ({ ...s, estTotal: tasks.length + 2 }))

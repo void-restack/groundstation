@@ -179,20 +179,6 @@ export function Launch() {
     if (stage === "preflight" && key.name === "return") return setStage("ignition")
   })
 
-  if (!canProvision) {
-    return (
-      <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.void}>
-        <text fg={palette.beacon}>LAUNCH SEQUENCE {glyph.sep} STANDBY</text>
-        <text fg={palette.caution} marginTop={1}>Provisioning needs an Ansible playbook directory.</text>
-        <text fg={palette.static}>
-          Point GROUNDSTATION at a folder containing {glyph.arrowRight} playbooks/provision-server.yml
-        </text>
-        <text fg={palette.beacon} marginTop={1}>[ , ] set it in settings {glyph.sep} [esc] back to board</text>
-        <LaunchExitKeys onBack={back} onSettings={() => setScreen("settings")} />
-      </box>
-    )
-  }
-
   if (stage === "ignition") {
     return (
       <box flexDirection="column" width="100%" height="100%" padding={1} backgroundColor={palette.void}>
@@ -222,7 +208,10 @@ export function Launch() {
             {!name.trim() ? <text fg={palette.hairline}>{glyph.sep} name required</text> : null}
           </box>
 
-          <text fg={palette.static} marginTop={1}>
+          <text fg={canProvision ? palette.downlink : palette.caution} marginTop={1}>
+            provisioning {glyph.arrowRight} {canProvision ? "ansible playbook" : "none — bare box (no ansible dir)"}
+          </text>
+          <text fg={palette.static}>
             ↑↓/tab move {glyph.sep} enter {glyph.search} search / continue {glyph.sep} esc abort
           </text>
         </box>
@@ -241,6 +230,7 @@ export function Launch() {
           <text fg={palette.static}>zone {glyph.arrowRight} <span fg={palette.starlight}>{spec.zone}</span></text>
           <text fg={palette.static}>machine {glyph.arrowRight} <span fg={palette.starlight}>{spec.machineType}</span></text>
           <text fg={palette.static}>image {glyph.arrowRight} <span fg={palette.starlight}>{spec.imageFamily}</span> ({spec.imageProject})</text>
+          <text fg={palette.static}>provision {glyph.arrowRight} <span fg={canProvision ? palette.downlink : palette.caution}>{canProvision ? "ansible" : "none (bare box)"}</span></text>
           <text fg={palette.beacon} marginTop={1}>[Enter] IGNITION {glyph.sep} [esc] revise</text>
         </box>
       )}
@@ -274,11 +264,3 @@ export function Launch() {
   )
 }
 
-/** Keyboard-only exit for the disabled-provisioning banner. */
-function LaunchExitKeys({ onBack, onSettings }: { onBack: () => void; onSettings: () => void }) {
-  useKeyboard((key) => {
-    if (key.name === "escape") return onBack()
-    if (key.sequence === ",") return onSettings()
-  })
-  return null
-}
