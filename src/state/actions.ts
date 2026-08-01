@@ -2,6 +2,7 @@ import { cues } from "../audio/cues"
 import type { Instance } from "../domain"
 import { getProvider } from "../providers/registry"
 import { confirm } from "./confirm"
+import { showDetail } from "./detail"
 import { logEvent, refreshFleet } from "./fleet"
 import { runOp } from "./oprunner"
 import { pushToast } from "./toast"
@@ -18,7 +19,29 @@ export interface VesselAction {
 
 const isRunning = (i: Instance) => i.state === "running"
 
+export function describeLines(inst: Instance): string[] {
+  return [
+    `PROVIDER   ${inst.provider}`,
+    `ID         ${inst.id}`,
+    `STATE      ${inst.state}  (${inst.rawState})`,
+    `ACCOUNT    ${inst.account || "—"}`,
+    `REGION     ${inst.region}`,
+    `ZONE       ${inst.zone ?? "—"}`,
+    `SIZE       ${inst.size}`,
+    `IMAGE      ${inst.image ?? "—"}`,
+    `EXTERNAL   ${inst.externalIp ?? "—"}`,
+    `INTERNAL   ${inst.internalIp ?? "—"}`,
+    `FLIGHT     ${inst.flightCode}`,
+    `CREATED    ${inst.createdAt.toISOString()}`,
+    `HARDENED   ${inst.hardened}`,
+  ]
+}
+
 export const VESSEL_ACTIONS: VesselAction[] = [
+  {
+    id: "describe", label: "Describe", kind: "read",
+    run: async (inst) => showDetail(`DESCRIBE · ${inst.name}`, describeLines(inst)),
+  },
   {
     id: "start", label: "Start", kind: "mutate", confirm: "yn",
     billing: "resumes compute billing",
@@ -57,6 +80,19 @@ export function actionsFor(inst: Instance): VesselAction[] {
 }
 
 export async function dispatch(action: VesselAction, inst: Instance) {
+  if (action.kind === "read") {
+    try {
+      await action.run(inst)
+    } catch (err) {
+      pushToast({
+        title: `${action.id} failed`,
+        message: err instanceof Error ? err.message : String(err),
+        variant: "error",
+      })
+    }
+    return
+  }
+
   if (action.confirm) {
     const ok = await confirm({
       title: `${action.label} ${inst.name}?`,

@@ -3,14 +3,16 @@ import { testRender } from "@opentui/react/test-utils"
 import { ActionMenu } from "../src/components/ActionMenu"
 import { ConfigForm } from "../src/components/ConfigForm"
 import { ConfirmDialog } from "../src/components/ConfirmDialog"
+import { DetailDialog } from "../src/components/DetailDialog"
 import { FleetCard } from "../src/components/FleetCard"
 import { Glass } from "../src/components/Glass"
 import { LogView } from "../src/components/LogView"
 import { OpRunner } from "../src/components/OpRunner"
 import { SearchModal } from "../src/components/SearchModal"
 import { ToolsModal } from "../src/components/ToolsModal"
-import { actionsFor } from "../src/state/actions"
+import { actionsFor, describeLines } from "../src/state/actions"
 import { confirm, resolveConfirm } from "../src/state/confirm"
+import { showDetail, dismissDetail } from "../src/state/detail"
 import { runOp } from "../src/state/oprunner"
 import { serverToInstance } from "../src/providers/gcp"
 import type { Server } from "../src/domain"
@@ -78,6 +80,27 @@ test("ActionMenu lists the state-valid actions for a running vessel", async () =
     expect(frame).toContain("Delete")
     expect(frame).not.toContain("Start") // running → start is gated out
   } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("describeLines renders the normalized instance fields (state + raw)", () => {
+  const lines = describeLines(instance)
+  expect(lines.some((l) => l.startsWith("PROVIDER") && l.includes("gcp"))).toBe(true)
+  expect(lines.some((l) => l.includes("running") && l.includes("(RUNNING)"))).toBe(true)
+  expect(lines.some((l) => l.startsWith("SIZE") && l.includes("e2-micro"))).toBe(true)
+})
+
+test("DetailDialog renders the vessel detail read-out", async () => {
+  showDetail("DESCRIBE · lab", describeLines(instance))
+  const setup = await testRender(<DetailDialog />, { width: 60, height: 20 })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("DESCRIBE")
+    expect(frame).toContain("e2-micro")
+  } finally {
+    dismissDetail()
     setup.renderer.destroy()
   }
 })

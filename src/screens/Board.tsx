@@ -10,6 +10,7 @@ import { Overview } from "../components/Overview"
 import { Ticker } from "../components/Ticker"
 import { TopBar } from "../components/TopBar"
 import { confirmActive } from "../state/confirm"
+import { detailActive } from "../state/detail"
 import { logEvent, refreshFleet, useEvents, useFleet } from "../state/fleet"
 import { opActive } from "../state/oprunner"
 import { updateAll } from "../state/ops"
@@ -43,7 +44,7 @@ export function Board() {
   }, [names.join(",")])
 
   useKeyboard((key) => {
-    if (paletteOpen || toolsOpen || actionMenuOpen || confirmActive() || opActive()) return
+    if (paletteOpen || toolsOpen || actionMenuOpen || confirmActive() || opActive() || detailActive()) return
     if (key.ctrl && key.name === "k") return setPalette(true)
     if (key.ctrl && key.name === "t") return setTools(true)
     if (key.sequence === "/") return setPalette(true)

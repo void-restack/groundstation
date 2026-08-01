@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { initAudio } from "./audio/cues"
 import { CommandPalette } from "./components/CommandPalette"
 import { ConfirmDialog } from "./components/ConfirmDialog"
+import { DetailDialog } from "./components/DetailDialog"
 import { OpRunner } from "./components/OpRunner"
 import { ToastHost } from "./components/ToastHost"
 import { ToolsModal } from "./components/ToolsModal"
@@ -48,6 +49,7 @@ export function App() {
       {toolsOpen ? <ToolsModal /> : null}
       <ConfirmDialog />
       <OpRunner />
+      <DetailDialog />
       <ToastHost />
     </box>
   )
