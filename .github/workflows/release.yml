@@ -28,8 +28,35 @@ jobs:
           name: gnd-${{ matrix.target }}
           path: gnd-${{ matrix.target }}${{ matrix.ext }}
 
-  release:
+  package-linux:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          name: gnd-linux-x64
+      - name: Build deb / rpm / arch packages
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          export VERSION="${VERSION#v}"
+          chmod +x gnd-linux-x64
+          mkdir -p dist
+          for pkg in deb rpm archlinux; do
+            docker run --rm -v "$PWD:/w" -w /w -e VERSION \
+              ghcr.io/goreleaser/nfpm:latest package --config nfpm.yaml --packager "$pkg" --target dist/
+          done
+          ls -la dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: linux-packages
+          path: dist/*
+
+  release:
+    needs: [build, package-linux]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -41,5 +68,9 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v3
         with:
-          files: dist/gnd-*
+          files: |
+            dist/gnd-*
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
           generate_release_notes: true

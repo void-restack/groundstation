@@ -1,0 +1,13 @@
+name: groundstation
+arch: amd64
+platform: linux
+version: ${VERSION}
+maintainer: void-restack <void-restack@users.noreply.github.com>
+description: Mission control for a cloud fleet - a terminal command center over gcloud and Ansible.
+homepage: https://github.com/void-restack/groundstation
+license: MIT
+contents:
+  - src: ./gnd-linux-x64
+    dst: /usr/bin/gnd
+    file_info:
+      mode: 0755
