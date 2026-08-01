@@ -7,6 +7,8 @@ import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
 import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/providers/registry"
 import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
+import { confirm, resolveConfirm } from "../src/state/confirm"
+import { runOp } from "../src/state/oprunner"
 import type { Server } from "../src/domain"
 
 const basePersisted: PersistedConfig = {
@@ -223,6 +225,33 @@ test("serverToInstance normalizes a GCP Server into an Instance", () => {
   expect(inst.zone).toBe("us-central1-a")
   expect(inst.region).toBe("us-central1")
   expect(serverToInstance(fakeServer({ status: "TERMINATED" }), "p").state).toBe("terminated")
+})
+
+test("confirm resolves via resolveConfirm and a new request cancels the pending one", async () => {
+  const p = confirm({ title: "stop?", message: "halts compute", mode: "yn" })
+  resolveConfirm(true)
+  expect(await p).toBe(true)
+
+  const first = confirm({ title: "a", message: "m", mode: "yn" })
+  const second = confirm({ title: "b", message: "m", mode: "yn" })
+  expect(await first).toBe(false) // superseded → auto-cancelled
+  resolveConfirm(false)
+  expect(await second).toBe(false)
+})
+
+test("runOp reports success, captures thrown errors as failure", async () => {
+  const seen: string[] = []
+  const ok = await runOp("stop · vessel-1", async (log) => {
+    log("stopping…")
+    seen.push("ran")
+  })
+  expect(ok).toBe(true)
+  expect(seen).toEqual(["ran"])
+
+  const bad = await runOp("delete · vessel-1", async () => {
+    throw new Error("boom")
+  })
+  expect(bad).toBe(false)
 })
 
 test("lifecycleArgs builds a zoned, --quiet gcloud command (no TTY prompt)", () => {
