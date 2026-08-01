@@ -6,6 +6,7 @@ import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
 import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/providers/registry"
+import { serverToInstance } from "../src/providers/gcp"
 import type { Server } from "../src/domain"
 
 const basePersisted: PersistedConfig = {
@@ -212,9 +213,21 @@ test("GCP listImages encodes imageProject inside the Choice value", async () => 
   expect(debian?.hint).toBe("debian-cloud")
 })
 
+test("serverToInstance normalizes a GCP Server into an Instance", () => {
+  const inst = serverToInstance(fakeServer(), "my-project")
+  expect(inst.provider).toBe("gcp")
+  expect(inst.state).toBe("running")
+  expect(inst.rawState).toBe("RUNNING")
+  expect(inst.account).toBe("my-project")
+  expect(inst.size).toBe("e2-micro")
+  expect(inst.zone).toBe("us-central1-a")
+  expect(inst.region).toBe("us-central1")
+  expect(serverToInstance(fakeServer({ status: "TERMINATED" }), "p").state).toBe("terminated")
+})
+
 test("GCP sshTarget resolves a reachable vessel and rejects one without an IP", () => {
   const gcp = getProvider()
-  const target = gcp.sshTarget(fakeServer())
+  const target = gcp.sshTarget(serverToInstance(fakeServer(), "p"))
   expect(target).toEqual({ host: "203.0.113.7", user: config.deployUser, identityFile: config.sshKey })
-  expect(gcp.sshTarget(fakeServer({ externalIp: null }))).toBeNull()
+  expect(gcp.sshTarget(serverToInstance(fakeServer({ externalIp: null }), "p"))).toBeNull()
 })

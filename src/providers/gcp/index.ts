@@ -1,5 +1,5 @@
 import { config } from "../../config"
-import type { Server } from "../../domain"
+import type { Instance, InstanceState, Server, ServerStatus } from "../../domain"
 import { createInstance, currentProject, fetchFleet, listZones } from "../../adapters/gcloud"
 import { regionOf } from "../../lib/format"
 import type {
@@ -34,6 +34,39 @@ const IMAGE_PROJECTS: Record<string, string> = {
   ubuntu: "ubuntu-os-cloud",
 }
 
+const STATE_MAP: Record<ServerStatus, InstanceState> = {
+  RUNNING: "running",
+  PROVISIONING: "provisioning",
+  STAGING: "starting",
+  STOPPING: "stopping",
+  TERMINATED: "terminated",
+  SUSPENDED: "suspended",
+  REPAIRING: "repairing",
+  UNKNOWN: "unknown",
+}
+
+export function serverToInstance(s: Server, account: string): Instance {
+  return {
+    provider: "gcp",
+    id: s.id,
+    name: s.name,
+    account,
+    state: STATE_MAP[s.status],
+    rawState: s.status,
+    region: s.region,
+    zone: s.zone,
+    flightCode: s.flightCode,
+    size: s.machineType,
+    image: null,
+    externalIp: s.externalIp,
+    internalIp: s.internalIp,
+    createdAt: s.createdAt,
+    hardened: s.hardened,
+    extra: {},
+    raw: s,
+  }
+}
+
 /** The image Choice value carries `family|project`; unpack it (extra overrides). */
 function unpackImage(image: string, extra?: Record<string, string>): { family: string; project: string } {
   const [family, encoded] = image.split("|")
@@ -57,14 +90,16 @@ export const gcp: Provider = {
     return { kind: "project", value: await currentProject() }
   },
 
-  listInstances(): Promise<Server[]> {
-    return fetchFleet()
+  async listInstances(): Promise<Instance[]> {
+    const [servers, account] = await Promise.all([fetchFleet(), currentProject().catch(() => "")])
+    return servers.map((s) => serverToInstance(s, account))
   },
 
-  async describe(id: string): Promise<Server> {
-    const found = (await fetchFleet()).find((s) => s.id === id || s.name === id)
+  async describe(id: string): Promise<Instance> {
+    const [servers, account] = await Promise.all([fetchFleet(), currentProject().catch(() => "")])
+    const found = servers.find((s) => s.id === id || s.name === id)
     if (!found) throw new Error(`no such vessel: ${id}`)
-    return found
+    return serverToInstance(found, account)
   },
 
   async create(spec: CreateSpec): Promise<{ id: string; name: string }> {
@@ -81,7 +116,7 @@ export const gcp: Provider = {
     return { id: spec.name, name: spec.name }
   },
 
-  sshTarget(inst: Server): SshTarget | null {
+  sshTarget(inst: Instance): SshTarget | null {
     if (!inst.externalIp) return null
     return { host: inst.externalIp, user: config.deployUser, identityFile: config.sshKey }
   },

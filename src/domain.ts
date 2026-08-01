@@ -1,3 +1,5 @@
+import type { ProviderId } from "./providers/types"
+
 export type ServerStatus =
   | "RUNNING"
   | "PROVISIONING"
@@ -22,6 +24,37 @@ export interface Server {
   internalIp: string | null
   createdAt: Date
   hardened: HardenedState
+}
+
+export type InstanceState =
+  | "running"
+  | "provisioning"
+  | "starting"
+  | "stopping"
+  | "stopped"
+  | "terminated"
+  | "suspended"
+  | "repairing"
+  | "unknown"
+
+export interface Instance {
+  provider: ProviderId
+  id: string
+  name: string
+  account: string
+  state: InstanceState
+  rawState: string
+  region: string
+  zone: string | null
+  flightCode: string
+  size: string
+  image: string | null
+  externalIp: string | null
+  internalIp: string | null
+  createdAt: Date
+  hardened: HardenedState
+  extra: Record<string, string>
+  raw: unknown
 }
 
 export interface FleetEvent {
