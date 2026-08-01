@@ -49,6 +49,8 @@ export interface Provider {
 
   detectConfigured(): Promise<ProviderStatus>
   account(): Promise<AccountContext>
+  listAccounts(): Promise<Choice[]>
+  setAccount(value: string): Promise<void>
 
   listInstances(): Promise<Instance[]>
   describe(id: string): Promise<Instance>

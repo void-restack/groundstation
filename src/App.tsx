@@ -4,6 +4,7 @@ import { CommandPalette } from "./components/CommandPalette"
 import { ConfirmDialog } from "./components/ConfirmDialog"
 import { DetailDialog } from "./components/DetailDialog"
 import { OpRunner } from "./components/OpRunner"
+import { ProjectSwitcher } from "./components/ProjectSwitcher"
 import { ToastHost } from "./components/ToastHost"
 import { ToolsModal } from "./components/ToolsModal"
 import { Board } from "./screens/Board"
@@ -13,10 +14,10 @@ import { Settings } from "./screens/Settings"
 import { Setup } from "./screens/Setup"
 import { useConfig } from "./state/config"
 import { startFleetPolling } from "./state/fleet"
-import { useUI } from "./state/ui"
+import { setProjectSwitch, useUI } from "./state/ui"
 
 export function App() {
-  const { screen, paletteOpen, toolsOpen } = useUI()
+  const { screen, paletteOpen, toolsOpen, projectSwitchOpen } = useUI()
   const { firstRun } = useConfig()
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export function App() {
       )}
       {paletteOpen ? <CommandPalette /> : null}
       {toolsOpen ? <ToolsModal /> : null}
+      {projectSwitchOpen ? <ProjectSwitcher onClose={() => setProjectSwitch(false)} /> : null}
       <ConfirmDialog />
       <OpRunner />
       <DetailDialog />

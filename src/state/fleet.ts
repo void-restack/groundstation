@@ -100,6 +100,20 @@ export async function refreshFleet() {
 
 let poller: ReturnType<typeof setInterval> | null = null
 
+export async function switchAccount(value: string) {
+  try {
+    await getProvider().setAccount(value)
+    project.set(value)
+    prevState = null
+    logEvent({ server: null, level: "info", message: `active project → ${value}` })
+    pushToast({ title: "project switched", message: value, variant: "success" })
+    await refreshFleet()
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err)
+    pushToast({ title: "switch failed", message: raw, variant: "error" })
+  }
+}
+
 export function startFleetPolling() {
   if (poller) return
   void refreshFleet()

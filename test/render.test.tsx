@@ -8,6 +8,7 @@ import { FleetCard } from "../src/components/FleetCard"
 import { Glass } from "../src/components/Glass"
 import { LogView } from "../src/components/LogView"
 import { OpRunner } from "../src/components/OpRunner"
+import { ProjectSwitcher } from "../src/components/ProjectSwitcher"
 import { SearchModal } from "../src/components/SearchModal"
 import { ToolsModal } from "../src/components/ToolsModal"
 import { actionsFor, describeLines } from "../src/state/actions"
@@ -141,6 +142,20 @@ test("OpRunner shows the op title and running chrome while an op is in flight", 
   } finally {
     release()
     await done
+    setup.renderer.destroy()
+  }
+})
+
+test("ProjectSwitcher renders the project picker via SearchModal", async () => {
+  const setup = await testRender(
+    <ProjectSwitcher onClose={() => {}} load={async () => [{ value: "proj-a", label: "proj-a", hint: "Project A" }]} />,
+    { width: 60, height: 20 },
+  )
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("SWITCH PROJECT")
+  } finally {
     setup.renderer.destroy()
   }
 })

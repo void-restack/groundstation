@@ -1,6 +1,6 @@
 import { config } from "../../config"
 import type { Instance, InstanceState, Server, ServerStatus } from "../../domain"
-import { exec } from "../../adapters/exec"
+import { exec, execJSON } from "../../adapters/exec"
 import { createInstance, currentProject, fetchFleet, listZones } from "../../adapters/gcloud"
 import { regionOf } from "../../lib/format"
 import { regionLocation, zoneLocation } from "../../lib/geo"
@@ -104,6 +104,20 @@ export const gcp: Provider = {
 
   async account(): Promise<AccountContext> {
     return { kind: "project", value: await currentProject() }
+  },
+
+  async listAccounts(): Promise<Choice[]> {
+    const projects = await execJSON<Array<{ projectId: string; name?: string }>>([
+      "gcloud", "projects", "list", "--format=json",
+    ])
+    return projects
+      .map((p) => ({ value: p.projectId, label: p.projectId, hint: p.name }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  },
+
+  async setAccount(value: string): Promise<void> {
+    const { stderr, code } = await exec(["gcloud", "config", "set", "project", value])
+    if (code !== 0) throw new Error(stderr.trim() || `set project failed (${code})`)
   },
 
   async listInstances(): Promise<Instance[]> {

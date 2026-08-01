@@ -32,7 +32,7 @@ const HINTS = [
 
 export function Board() {
   const { instances, loading } = useFleet()
-  const { selected, paletteOpen, toolsOpen, actionMenuOpen } = useUI()
+  const { selected, paletteOpen, toolsOpen, actionMenuOpen, projectSwitchOpen } = useUI()
   const events = useEvents()
   const renderer = useRenderer()
 
@@ -44,7 +44,7 @@ export function Board() {
   }, [names.join(",")])
 
   useKeyboard((key) => {
-    if (paletteOpen || toolsOpen || actionMenuOpen || confirmActive() || opActive() || detailActive()) return
+    if (paletteOpen || toolsOpen || actionMenuOpen || projectSwitchOpen || confirmActive() || opActive() || detailActive()) return
     if (key.ctrl && key.name === "k") return setPalette(true)
     if (key.ctrl && key.name === "t") return setTools(true)
     if (key.sequence === "/") return setPalette(true)

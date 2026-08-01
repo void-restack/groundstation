@@ -5,7 +5,7 @@ import { uplink } from "../adapters/ssh"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
 import { updateAll } from "../state/ops"
-import { setPalette, setScreen, setTools, useUI } from "../state/ui"
+import { setPalette, setProjectSwitch, setScreen, setTools, useUI } from "../state/ui"
 import { glyph, palette } from "../theme"
 
 interface Command {
@@ -58,6 +58,7 @@ export function CommandPalette() {
         },
       },
       { id: "orbit", title: "Orbit view", run: () => setScreen("orbit") },
+      { id: "project", title: "Switch project — change active GCP project", run: () => setProjectSwitch(true) },
       { id: "settings", title: "Settings — mission config", run: () => setScreen("settings") },
       { id: "tools", title: "Dependencies — check & install tools", run: () => setTools(true) },
       { id: "refresh", title: "Refresh fleet", run: () => void refreshFleet() },
