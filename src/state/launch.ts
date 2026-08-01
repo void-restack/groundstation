@@ -1,5 +1,6 @@
 import { createInstance } from "../adapters/gcloud"
 import { listTasks, runProvision, type ProvisionEvent } from "../adapters/ansible"
+import { capabilities } from "../config"
 import { cues } from "../audio/cues"
 import type { LaunchPhase, LaunchStep } from "../domain"
 import { createStore, useStore } from "../lib/store"
@@ -89,6 +90,10 @@ async function settle(name: string, timeoutMs = 120000): Promise<boolean> {
 
 export async function beginLaunch(spec: LaunchSpec) {
   if (running) return
+  if (!capabilities.canProvision) {
+    logEvent({ server: spec.name, level: "caution", message: "provisioning unavailable — set an ansible dir in settings ( , )" })
+    return
+  }
   running = true
   launch.set({ ...initial, phase: "running", target: spec.name })
   logEvent({ server: spec.name, level: "info", message: `launch sequence: ${spec.name}` })

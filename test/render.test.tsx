@@ -12,7 +12,7 @@ const server: Server = {
   region: "us-central1",
   flightCode: "USC1·A",
   machineType: "e2-micro",
-  externalIp: "136.112.152.21",
+  externalIp: "203.0.113.21",
   internalIp: "10.128.0.14",
   createdAt: new Date(0),
   hardened: "hardened",
@@ -36,7 +36,7 @@ test("Glass renders telemetry for the selected vessel", async () => {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
     expect(frame).toContain("lab")
-    expect(frame).toContain("136.112.152.21")
+    expect(frame).toContain("203.0.113.21")
   } finally {
     setup.renderer.destroy()
   }

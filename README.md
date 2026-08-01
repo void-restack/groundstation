@@ -29,15 +29,20 @@ real [btop](https://github.com/aristocratos/btop) `.theme` files.
 ## Requirements
 
 - [Bun](https://bun.sh) ≥ 1.3
-- Google Cloud SDK (`gcloud`), authenticated with a project set
-- An Ansible provisioning setup (defaults to `~/dotfiles/ansible`)
+- Google Cloud SDK (`gcloud`), authenticated with a project set — this is all the **fleet viewer** needs
+- *Optional:* an Ansible provisioning directory — only for the **Launch/provision** and **Update** features.
+  Point `GND_ANSIBLE_DIR` (or the in-app setup) at a dir containing `playbooks/provision-server.yml`
+  and `playbooks/update-all.yml`. Without it, those actions are shown disabled with a hint; everything
+  else works.
+- *Optional:* an SSH key — only for **Uplink** and the hardened probe. Unset, `ssh` uses your agent/config.
 
 ## Quick start
 
 ```bash
 bun install
-bun start          # launch the dashboard
-bun run compile    # → a single self-contained binary: ./gnd
+bun start              # launch the dashboard (no config needed — just a gcloud login)
+bun run compile        # → a single self-contained binary: ./gnd
+bun run install-local  # compile + copy gnd into ~/.local/bin (must be on your PATH)
 ```
 
 ## Keybindings
@@ -74,23 +79,30 @@ bun run serve                 # listens on 127.0.0.1:2222, public-key auth
 ssh -p 2222 127.0.0.1
 ```
 
-Access is gated by an authorized-keys file (`GND_AUTHORIZED_KEYS`, default
-`~/.ssh/deploy_osiris_01.pub`); the host key is generated and persisted under
-`~/.config/groundstation/`.
+Access is gated by an authorized-keys file (`GND_AUTHORIZED_KEYS`, default the standard
+`~/.ssh/authorized_keys`); the host key is generated and persisted under `~/.config/groundstation/`.
+If no keys are present, `serve` refuses to start rather than opening an unreachable port.
 
 ## Configuration
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `GND_ANSIBLE_DIR` | `~/dotfiles/ansible` | Directory holding the playbooks and inventory |
-| `GND_BOOTSTRAP_USER` | `void` | User for the first provision of a fresh VM |
-| `GND_DEPLOY_USER` | `deploy` | Steady-state login created by provisioning |
-| `GND_SSH_KEY` | `~/.ssh/deploy_osiris_01` | Key used for uplink and provisioning |
-| `GND_POLL_MS` | `15000` | Fleet refresh interval (ms) |
-| `GND_BTOP_THEME` | – | Named theme under `~/.config/btop/themes/` |
-| `GND_THEME` | – | Absolute path to a btop `.theme` file |
-| `GND_AUTHORIZED_KEYS` | `~/.ssh/deploy_osiris_01.pub` | Authorized keys for `serve` mode |
-| `GND_PORT` | `2222` | Port for `serve` mode |
+GROUNDSTATION runs with **zero configuration** — the fleet viewer only needs a `gcloud` login. Settings
+are stored in `~/.config/groundstation/config.json` (honouring `XDG_CONFIG_HOME`) and every value is also
+overridable by an environment variable, with precedence **env var > config file > auto-detected default**.
+None of the defaults are personal or machine-specific.
+
+| Variable | Config key | Default | Purpose |
+|----------|-----------|---------|---------|
+| `GND_ANSIBLE_DIR` | `ansibleDir` | *(unset → provisioning disabled)* | Directory holding the playbooks |
+| `GND_PROVISION_PLAYBOOK` | `provisionPlaybook` | `playbooks/provision-server.yml` | Provision playbook (relative to the ansible dir) |
+| `GND_UPDATE_PLAYBOOK` | `updatePlaybook` | `playbooks/update-all.yml` | Update-all playbook |
+| `GND_BOOTSTRAP_USER` | `bootstrapUser` | *(current OS user)* | User for the first provision of a fresh VM |
+| `GND_DEPLOY_USER` | `deployUser` | *(current OS user)* | Steady-state login used for uplink |
+| `GND_SSH_KEY` | `sshKey` | *(unset → ssh agent/config)* | Key for uplink and the hardened probe |
+| `GND_AUTHORIZED_KEYS` | `authorizedKeys` | `~/.ssh/authorized_keys` | Authorized keys for `serve` mode |
+| `GND_POLL_MS` | `pollIntervalMs` | `15000` | Fleet refresh interval (ms) |
+| `GND_PORT` | `port` | `2222` | Port for `serve` mode |
+| `GND_BTOP_THEME` | – | – | Named theme under `~/.config/btop/themes/` |
+| `GND_THEME` | – | – | Absolute path to a btop `.theme` file |
 
 ## How it works
 

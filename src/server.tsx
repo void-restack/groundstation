@@ -1,15 +1,23 @@
 import { createRoot } from "@opentui/react"
 import { createServer } from "@opentui/ssh"
 import { mkdirSync } from "fs"
-import { homedir } from "os"
-import { dirname, join } from "path"
+import { join } from "path"
 import { App } from "./App"
+import { capabilities, config, configDir } from "./config"
 
-export async function serve(port = 2222) {
-  const authorizedKeys = process.env.GND_AUTHORIZED_KEYS ?? join(homedir(), ".ssh", "deploy_osiris_01.pub")
+export async function serve(port = config.port) {
+  const authorizedKeys = config.authorizedKeys
 
-  const hostKeyPath = process.env.GND_HOST_KEY ?? join(homedir(), ".config", "groundstation", "host_key")
-  mkdirSync(dirname(hostKeyPath), { recursive: true })
+  if (!capabilities.canServe) {
+    console.error(`GROUNDSTATION: no authorized keys at ${authorizedKeys}`)
+    console.error("add public keys there, or set GND_AUTHORIZED_KEYS, before serving over SSH.")
+    process.exitCode = 1
+    return
+  }
+
+  const dir = configDir()
+  mkdirSync(dir, { recursive: true })
+  const hostKeyPath = process.env.GND_HOST_KEY ?? join(dir, "host_key")
 
   const server = createServer({
     hostKey: { path: hostKeyPath },

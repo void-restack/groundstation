@@ -11,7 +11,8 @@
     "dev": "DEV=true bun run src/index.tsx",
     "serve": "bun run src/index.tsx serve",
     "typecheck": "tsc --noEmit",
-    "compile": "bun build --compile ./src/index.tsx --outfile gnd",
+    "compile": "bun build --compile ./src/index.tsx --minify --outfile gnd",
+    "install-local": "bun run compile && mkdir -p ~/.local/bin && cp gnd ~/.local/bin/gnd",
     "test": "bun test"
   },
   "dependencies": {

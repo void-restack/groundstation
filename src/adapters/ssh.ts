@@ -2,9 +2,13 @@ import type { CliRenderer } from "@opentui/core"
 import { config } from "../config"
 import type { Server } from "../domain"
 
+/** `-i <key>` only when a key is configured; otherwise ssh uses its own agent/config. */
+const keyArgs = (): string[] => (config.sshKey ? ["-i", config.sshKey] : [])
+
 export function sshCommand(server: Server): string | null {
   if (!server.externalIp) return null
-  return `ssh -i ${config.sshKey} ${config.deployUser}@${server.externalIp}`
+  const key = config.sshKey ? `-i ${config.sshKey} ` : ""
+  return `ssh ${key}${config.deployUser}@${server.externalIp}`
 }
 
 export async function probeHardened(server: Server): Promise<boolean> {
@@ -12,7 +16,7 @@ export async function probeHardened(server: Server): Promise<boolean> {
   const proc = Bun.spawn(
     [
       "ssh",
-      "-i", config.sshKey,
+      ...keyArgs(),
       "-o", "BatchMode=yes",
       "-o", "ConnectTimeout=4",
       "-o", "StrictHostKeyChecking=accept-new",
@@ -31,7 +35,7 @@ export async function uplink(renderer: CliRenderer, server: Server): Promise<num
   renderer.suspend()
   try {
     const proc = Bun.spawn(
-      ["ssh", "-i", config.sshKey, `${config.deployUser}@${server.externalIp}`],
+      ["ssh", ...keyArgs(), `${config.deployUser}@${server.externalIp}`],
       { stdin: "inherit", stdout: "inherit", stderr: "inherit" },
     )
     return await proc.exited

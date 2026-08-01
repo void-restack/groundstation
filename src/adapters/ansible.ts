@@ -41,9 +41,11 @@ export function parseLine(line: string): ProvisionEvent | null {
 }
 
 export async function listTasks(target: string): Promise<string[]> {
+  const dir = config.ansibleDir
+  if (!dir) return []
   const { stdout, code } = await exec(
     ["ansible-playbook", config.provisionPlaybook, "-e", `target=${target}`, "--list-tasks"],
-    config.ansibleDir,
+    dir,
   )
   if (code !== 0) return []
   const tasks: string[] = []
@@ -58,6 +60,8 @@ export function runProvision(
   target: string,
   onEvent: (e: ProvisionEvent) => void,
 ): Promise<boolean> {
+  const dir = config.ansibleDir
+  if (!dir) return Promise.resolve(false)
   return streamLines(
     [
       "ansible-playbook",
@@ -68,14 +72,16 @@ export function runProvision(
       `ansible_user=${config.bootstrapUser}`,
     ],
     (line) => onEvent(parseLine(line) ?? { type: "log", line }),
-    { cwd: config.ansibleDir, env: ANSIBLE_ENV },
+    { cwd: dir, env: ANSIBLE_ENV },
   ).then((codeCbk) => codeCbk === 0)
 }
 
 export function runUpdateAll(onEvent: (e: ProvisionEvent) => void): Promise<boolean> {
+  const dir = config.ansibleDir
+  if (!dir) return Promise.resolve(false)
   return streamLines(
     ["ansible-playbook", config.updatePlaybook],
     (line) => onEvent(parseLine(line) ?? { type: "log", line }),
-    { cwd: config.ansibleDir, env: ANSIBLE_ENV },
+    { cwd: dir, env: ANSIBLE_ENV },
   ).then((code) => code === 0)
 }

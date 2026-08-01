@@ -1,7 +1,39 @@
 import { expect, test } from "bun:test"
 import { parseLine } from "../src/adapters/ansible"
+import { computeCapabilities, resolveConfig, type PersistedConfig } from "../src/config"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
+
+const basePersisted: PersistedConfig = {
+  schemaVersion: 1,
+  ansibleDir: null,
+  provisionPlaybook: "playbooks/provision-server.yml",
+  updatePlaybook: "playbooks/update-all.yml",
+  bootstrapUser: null,
+  deployUser: null,
+  sshKey: null,
+  authorizedKeys: null,
+  pollIntervalMs: 15000,
+  port: 2222,
+}
+
+/** Run `fn` with the given GND_* vars temporarily cleared/overridden, then restore. */
+function withEnv(vars: Record<string, string | undefined>, fn: () => void) {
+  const saved: Record<string, string | undefined> = {}
+  for (const [k, v] of Object.entries(vars)) {
+    saved[k] = process.env[k]
+    if (v === undefined) delete process.env[k]
+    else process.env[k] = v
+  }
+  try {
+    fn()
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k]
+      else process.env[k] = v
+    }
+  }
+}
 
 test("flightCode maps zones to callsigns", () => {
   expect(flightCode("us-central1-a")).toBe("USC1·A")
@@ -28,6 +60,38 @@ test("elapsed formats mission time", () => {
 test("lerpHex interpolates endpoints", () => {
   expect(lerpHex("#000000", "#ffffff", 0)).toBe("#000000")
   expect(lerpHex("#000000", "#ffffff", 1)).toBe("#ffffff")
+})
+
+test("resolveConfig: env > file > auto-detected default", () => {
+  withEnv({ GND_DEPLOY_USER: "envuser" }, () => {
+    expect(resolveConfig({ ...basePersisted, deployUser: "fileuser" }).deployUser).toBe("envuser")
+  })
+  withEnv({ GND_DEPLOY_USER: undefined }, () => {
+    expect(resolveConfig({ ...basePersisted, deployUser: "fileuser" }).deployUser).toBe("fileuser")
+    // unset everywhere → current OS user, which is always a non-empty string
+    expect(resolveConfig(basePersisted).deployUser.length).toBeGreaterThan(0)
+  })
+})
+
+test("resolveConfig: sshKey stays null when unset, so ssh uses its own agent/config", () => {
+  withEnv({ GND_SSH_KEY: undefined }, () => {
+    expect(resolveConfig(basePersisted).sshKey).toBeNull()
+    expect(resolveConfig({ ...basePersisted, sshKey: "/keys/id_ed25519" }).sshKey).toBe("/keys/id_ed25519")
+  })
+})
+
+test("resolveConfig: authorizedKeys defaults to the standard file, not a personal pubkey", () => {
+  withEnv({ GND_AUTHORIZED_KEYS: undefined }, () => {
+    expect(resolveConfig(basePersisted).authorizedKeys.endsWith("/.ssh/authorized_keys")).toBe(true)
+  })
+})
+
+test("computeCapabilities: no ansible dir disables provisioning + sweep", () => {
+  withEnv({ GND_ANSIBLE_DIR: undefined }, () => {
+    const caps = computeCapabilities(resolveConfig(basePersisted))
+    expect(caps.canProvision).toBe(false)
+    expect(caps.canUpdate).toBe(false)
+  })
 })
 
 test("parseLine recognises ansible output", () => {
