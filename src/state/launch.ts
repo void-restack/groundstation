@@ -1,4 +1,4 @@
-import { createInstance } from "../adapters/gcloud"
+import { getProvider } from "../providers/registry"
 import { listTasks, runProvision, type ProvisionEvent } from "../adapters/ansible"
 import { capabilities } from "../config"
 import { cues } from "../audio/cues"
@@ -100,7 +100,13 @@ export async function beginLaunch(spec: LaunchSpec) {
 
   try {
     pushStep({ name: "provision vessel", role: "gcloud", state: "running", durationMs: null, detail: null })
-    await createInstance(spec)
+    await getProvider().create({
+      name: spec.name,
+      region: spec.zone,
+      zone: spec.zone,
+      size: spec.machineType,
+      image: `${spec.imageFamily}|${spec.imageProject}`,
+    })
     resolveLast("changed")
 
     pushStep({ name: "await boot + network", role: "gcloud", state: "running", durationMs: null, detail: null })
