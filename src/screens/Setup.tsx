@@ -1,17 +1,28 @@
+import { useKeyboard } from "@opentui/react"
+import { useMemo } from "react"
+import { detectTools } from "../adapters/tools"
 import { config } from "../config"
 import { ConfigForm } from "../components/ConfigForm"
 import { applyAndSave, skipSetup } from "../state/config"
 import { useProject } from "../state/fleet"
+import { setTools, useUI } from "../state/ui"
 import { glyph, palette } from "../theme"
 
 /**
  * First-run setup. The fleet view already works from the gcloud login alone, so
  * every field here is optional — this screen just lets the operator wire up
  * provisioning + uplink up front instead of hunting for env vars. Both save and
- * skip write the config file, so it never nags twice.
+ * skip write the config file, so it never nags twice. ^T opens the tool doctor.
  */
 export function Setup() {
   const project = useProject()
+  const { toolsOpen } = useUI()
+  const tools = useMemo(() => detectTools(), [])
+
+  useKeyboard((key) => {
+    if (toolsOpen) return
+    if (key.ctrl && key.name === "t") setTools(true)
+  })
 
   return (
     <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.void}>
@@ -30,6 +41,16 @@ export function Setup() {
         </text>
       </box>
 
+      <box flexDirection="row" gap={2}>
+        <text fg={palette.static}>tools</text>
+        {tools.map((t) => (
+          <text key={t.spec.id} fg={t.path ? palette.nominal : palette.flare}>
+            {t.spec.label} {t.path ? "✓" : "✗"}
+          </text>
+        ))}
+        <text fg={palette.beacon}>[^T] manage</text>
+      </box>
+
       <box
         marginTop={1}
         border
@@ -39,6 +60,7 @@ export function Setup() {
         padding={1}
       >
         <ConfigForm
+          enabled={!toolsOpen}
           onSave={(patch) => applyAndSave(patch)}
           onCancel={() => skipSetup()}
           saveLabel="save & launch"

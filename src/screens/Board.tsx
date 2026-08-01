@@ -11,7 +11,7 @@ import { Ticker } from "../components/Ticker"
 import { TopBar } from "../components/TopBar"
 import { logEvent, refreshFleet, useEvents, useFleet } from "../state/fleet"
 import { updateAll } from "../state/ops"
-import { ensureSelection, moveSelection, setPalette, setScreen, useUI } from "../state/ui"
+import { ensureSelection, moveSelection, setPalette, setScreen, setTools, useUI } from "../state/ui"
 import { palette } from "../theme"
 
 const HINTS = [
@@ -21,13 +21,14 @@ const HINTS = [
   { key: "S", label: "sh" },
   { key: "O", label: "rbit" },
   { key: ",", label: "settings" },
+  { key: "^T", label: "tools" },
   { key: "/", label: "command" },
   { key: "Q", label: "uit" },
 ]
 
 export function Board() {
   const { servers, loading } = useFleet()
-  const { selected, paletteOpen } = useUI()
+  const { selected, paletteOpen, toolsOpen } = useUI()
   const events = useEvents()
   const renderer = useRenderer()
 
@@ -39,8 +40,9 @@ export function Board() {
   }, [names.join(",")])
 
   useKeyboard((key) => {
-    if (paletteOpen) return
+    if (paletteOpen || toolsOpen) return
     if (key.ctrl && key.name === "k") return setPalette(true)
+    if (key.ctrl && key.name === "t") return setTools(true)
     if (key.sequence === "/") return setPalette(true)
     if (key.sequence === ",") return setScreen("settings")
     switch (key.name) {

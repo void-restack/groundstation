@@ -6,12 +6,14 @@ interface UIState {
   screen: Screen
   selected: string | null
   paletteOpen: boolean
+  toolsOpen: boolean
 }
 
 const ui = createStore<UIState>({
   screen: "board",
   selected: null,
   paletteOpen: false,
+  toolsOpen: false,
 })
 
 export const useUI = () => useStore(ui)
@@ -19,6 +21,7 @@ export const useUI = () => useStore(ui)
 export const setScreen = (screen: Screen) => ui.set((s) => ({ ...s, screen }))
 export const select = (selected: string | null) => ui.set((s) => ({ ...s, selected }))
 export const setPalette = (paletteOpen: boolean) => ui.set((s) => ({ ...s, paletteOpen }))
+export const setTools = (toolsOpen: boolean) => ui.set((s) => ({ ...s, toolsOpen }))
 
 export function moveSelection(names: string[], delta: number) {
   ui.set((s) => {

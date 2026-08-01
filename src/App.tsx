@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { initAudio } from "./audio/cues"
 import { CommandPalette } from "./components/CommandPalette"
 import { ToastHost } from "./components/ToastHost"
+import { ToolsModal } from "./components/ToolsModal"
 import { Board } from "./screens/Board"
 import { Launch } from "./screens/Launch"
 import { Orbit } from "./screens/Orbit"
@@ -12,7 +13,7 @@ import { startFleetPolling } from "./state/fleet"
 import { useUI } from "./state/ui"
 
 export function App() {
-  const { screen, paletteOpen } = useUI()
+  const { screen, paletteOpen, toolsOpen } = useUI()
   const { firstRun } = useConfig()
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export function App() {
     return (
       <box width="100%" height="100%">
         <Setup />
+        {toolsOpen ? <ToolsModal /> : null}
         <ToastHost />
       </box>
     )
@@ -41,6 +43,7 @@ export function App() {
         <Board />
       )}
       {paletteOpen ? <CommandPalette /> : null}
+      {toolsOpen ? <ToolsModal /> : null}
       <ToastHost />
     </box>
   )

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { parseLine } from "../src/adapters/ansible"
+import { TOOLS, detectTool, installCommand } from "../src/adapters/tools"
 import { computeCapabilities, resolveConfig, type PersistedConfig } from "../src/config"
 import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
@@ -110,6 +111,21 @@ test("summarizeError falls back to the first ERROR line, trimmed", () => {
   const { title, message } = summarizeError("noise\nERROR: (gcloud.x) quota exceeded for region\nmore noise")
   expect(title).toBe("fleet error")
   expect(message).toBe("quota exceeded for region")
+})
+
+test("tool registry covers gcloud/ansible/ssh", () => {
+  expect(TOOLS.map((t) => t.id).sort()).toEqual(["ansible", "gcloud", "ssh"])
+})
+
+test("detectTool resolves present binaries on PATH and nulls missing ones", () => {
+  expect(detectTool({ ...TOOLS[0]!, bin: "sh" }).path).toBeTruthy()
+  expect(detectTool({ ...TOOLS[0]!, bin: "definitely-not-a-real-binary-xyz" }).path).toBeNull()
+})
+
+test("installCommand is a package-manager command or null (never a curl|bash)", () => {
+  const cmd = installCommand(TOOLS.find((t) => t.id === "ansible")!)
+  expect(cmd === null || cmd.includes("ansible")).toBe(true)
+  if (cmd) expect(cmd).not.toContain("curl")
 })
 
 test("parseLine recognises ansible output", () => {

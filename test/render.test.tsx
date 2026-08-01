@@ -5,6 +5,7 @@ import { FleetCard } from "../src/components/FleetCard"
 import { Glass } from "../src/components/Glass"
 import { LogView } from "../src/components/LogView"
 import { SearchModal } from "../src/components/SearchModal"
+import { ToolsModal } from "../src/components/ToolsModal"
 import type { Server } from "../src/domain"
 
 const server: Server = {
@@ -75,6 +76,19 @@ test("ConfigForm renders the mission-config fields", async () => {
     expect(frame).toContain("ANSIBLE")
     expect(frame).toContain("SSH KEY")
     expect(frame).toContain("PORT")
+  } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("ToolsModal lists the external dependencies with status", async () => {
+  const setup = await testRender(<ToolsModal />, { width: 80, height: 16 })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("MISSION DEPENDENCIES")
+    expect(frame).toContain("gcloud")
+    expect(frame).toContain("ansible")
   } finally {
     setup.renderer.destroy()
   }
