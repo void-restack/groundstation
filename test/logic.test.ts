@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test"
 import { parseLine } from "../src/adapters/ansible"
 import { TOOLS, detectTool, installCommand } from "../src/adapters/tools"
-import { computeCapabilities, expandHome, resolveConfig, type PersistedConfig } from "../src/config"
+import { computeCapabilities, config, expandHome, resolveConfig, type PersistedConfig } from "../src/config"
 import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
+import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/providers/registry"
+import type { Server } from "../src/domain"
 
 const basePersisted: PersistedConfig = {
   schemaVersion: 1,
@@ -160,4 +162,59 @@ test("parseLine recognises ansible output", () => {
   expect(parseLine("fatal: [lab]: FAILED! => {}")).toMatchObject({ type: "result", state: "failed" })
   expect(parseLine("PLAY RECAP ***")).toEqual({ type: "recap", failures: 0 })
   expect(parseLine("some noise")).toEqual({ type: "log", line: "some noise" })
+})
+
+function fakeServer(over: Partial<Server> = {}): Server {
+  return {
+    id: "1",
+    name: "vessel-1",
+    status: "RUNNING",
+    zone: "us-central1-a",
+    region: "us-central1",
+    flightCode: "USC1·A",
+    machineType: "e2-micro",
+    externalIp: "203.0.113.7",
+    internalIp: "10.0.0.2",
+    createdAt: new Date(0),
+    hardened: "unknown",
+    ...over,
+  }
+}
+
+test("registry exposes GCP as the sole registered provider", () => {
+  expect(DEFAULT_PROVIDER).toBe("gcp")
+  expect(registeredProviders().map((p) => p.id)).toEqual(["gcp"])
+  const gcp = getProvider()
+  expect(gcp.id).toBe("gcp")
+  expect(gcp.cliBin).toBe("gcloud")
+  expect(getProvider("gcp")).toBe(gcp)
+})
+
+test("registry throws for an unregistered provider", () => {
+  expect(() => getProvider("aws")).toThrow(/not registered/)
+})
+
+test("GCP createFields drives a zone/size/image launch form", () => {
+  expect(getProvider().createFields().map((f) => f.key)).toEqual(["zone", "size", "image"])
+})
+
+test("GCP listSizes returns pickable machine types", async () => {
+  const sizes = await getProvider().listSizes("us-central1")
+  expect(sizes.length).toBeGreaterThan(0)
+  expect(sizes.every((c) => c.value === c.label)).toBe(true)
+  expect(sizes.map((c) => c.value)).toContain("e2-micro")
+})
+
+test("GCP listImages encodes imageProject inside the Choice value", async () => {
+  const images = await getProvider().listImages("us-central1")
+  const debian = images.find((c) => c.label === "debian-12")
+  expect(debian?.value).toBe("debian-12|debian-cloud")
+  expect(debian?.hint).toBe("debian-cloud")
+})
+
+test("GCP sshTarget resolves a reachable vessel and rejects one without an IP", () => {
+  const gcp = getProvider()
+  const target = gcp.sshTarget(fakeServer())
+  expect(target).toEqual({ host: "203.0.113.7", user: config.deployUser, identityFile: config.sshKey })
+  expect(gcp.sshTarget(fakeServer({ externalIp: null }))).toBeNull()
 })
