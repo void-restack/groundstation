@@ -20,6 +20,8 @@
     "@opentui/keymap": "^0.4.5",
     "@opentui/react": "^0.4.5",
     "@opentui/ssh": "^0.4.5",
+    "fuzzysort": "^3.1.0",
+    "opentui-spinner": "^0.0.7",
     "react": "^19.2.0"
   },
   "devDependencies": {

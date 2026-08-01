@@ -1,5 +1,6 @@
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useState } from "react"
+import { Field, SelectField } from "../components/Field"
 import type { LaunchStep } from "../domain"
 import { duration } from "../lib/format"
 import { useClock } from "../state/clock"
@@ -100,43 +101,6 @@ function Ignition({ spec }: { spec: LaunchSpec }) {
         <text fg={palette.static}>running… launch is unattended, sit back</text>
       )}
     </box>
-  )
-}
-
-function Field({
-  label,
-  focused,
-  children,
-}: {
-  label: string
-  focused: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <box flexDirection="row" gap={1} alignItems="center">
-      <text fg={focused ? palette.downlink : palette.static}>{label.padEnd(9)}</text>
-      <box
-        width={44}
-        height={1}
-        backgroundColor={focused ? palette.raised : palette.panel}
-        paddingLeft={1}
-        paddingRight={1}
-        flexDirection="row"
-        justifyContent="space-between"
-      >
-        {children}
-      </box>
-    </box>
-  )
-}
-
-function SelectField({ label, value, focused }: { label: string; value: string; focused: boolean }) {
-  return (
-    <Field label={label} focused={focused}>
-      <text fg={focused ? palette.beacon : palette.hairline}>◂</text>
-      <text fg={palette.starlight}>{value}</text>
-      <text fg={focused ? palette.beacon : palette.hairline}>▸</text>
-    </Field>
   )
 }
 
