@@ -148,6 +148,9 @@ export const gcp: Provider = {
     const zone = spec.zone ?? spec.region
     if (!zone) throw new Error("gcp create requires a zone")
     const { family, project } = unpackImage(spec.image, spec.extra)
+    const tags: string[] = []
+    if (spec.allowHttp) tags.push("http-server")
+    if (spec.allowHttps) tags.push("https-server")
     await createInstance({
       name: spec.name,
       zone,
@@ -155,6 +158,8 @@ export const gcp: Provider = {
       imageFamily: family,
       imageProject: project,
       userDataFile: spec.extra?.["user-data"],
+      diskSizeGb: spec.diskSizeGb,
+      tags,
     })
     return { id: spec.name, name: spec.name }
   },

@@ -75,14 +75,18 @@ export async function listZones(): Promise<string[]> {
   return zones.map((z) => z.name).sort()
 }
 
-export async function createInstance(opts: {
+export interface CreateInstanceOpts {
   name: string
   zone: string
   machineType: string
   imageFamily: string
   imageProject: string
   userDataFile?: string
-}): Promise<void> {
+  diskSizeGb?: number
+  tags?: string[]
+}
+
+export function createArgs(opts: CreateInstanceOpts): string[] {
   const args = [
     "gcloud",
     "compute",
@@ -94,7 +98,13 @@ export async function createInstance(opts: {
     `--image-family=${opts.imageFamily}`,
     `--image-project=${opts.imageProject}`,
   ]
+  if (opts.diskSizeGb) args.push(`--boot-disk-size=${opts.diskSizeGb}GB`)
+  if (opts.tags && opts.tags.length) args.push(`--tags=${opts.tags.join(",")}`)
   if (opts.userDataFile) args.push("--metadata-from-file", `user-data=${opts.userDataFile}`)
-  const { stderr, code } = await exec(args)
+  return args
+}
+
+export async function createInstance(opts: CreateInstanceOpts): Promise<void> {
+  const { stderr, code } = await exec(createArgs(opts))
   if (code !== 0) throw new Error(stderr.trim() || `instance create failed (${code})`)
 }

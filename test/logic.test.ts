@@ -6,6 +6,7 @@ import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
 import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/providers/registry"
 import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
+import { createArgs } from "../src/adapters/gcloud"
 import { zoneLocation } from "../src/lib/geo"
 import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
@@ -310,6 +311,23 @@ test("zoneLocation maps a zone to its city so pickers are searchable by name", (
   expect(zoneLocation("us-central1-b")).toBe("Iowa")
   expect(zoneLocation("europe-west2-c")).toBe("London")
   expect(zoneLocation("nonexistent-zone-x")).toBeUndefined()
+})
+
+test("createArgs adds boot-disk size, network tags, and cloud-init metadata when set", () => {
+  const full = createArgs({
+    name: "x", zone: "us-central1-a", machineType: "e2-micro",
+    imageFamily: "debian-12", imageProject: "debian-cloud",
+    diskSizeGb: 50, tags: ["http-server", "https-server"], userDataFile: "/tmp/c.yml",
+  })
+  expect(full).toContain("--boot-disk-size=50GB")
+  expect(full).toContain("--tags=http-server,https-server")
+  expect(full).toContain("user-data=/tmp/c.yml")
+
+  const bare = createArgs({
+    name: "x", zone: "z", machineType: "m", imageFamily: "f", imageProject: "p",
+  })
+  expect(bare.some((a) => a.startsWith("--boot-disk-size"))).toBe(false)
+  expect(bare.some((a) => a.startsWith("--tags"))).toBe(false)
 })
 
 test("lifecycleArgs builds a zoned, --quiet gcloud command (no TTY prompt)", () => {

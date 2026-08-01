@@ -14,6 +14,9 @@ export interface CreateSpec {
   zone?: string
   size: string
   image: string
+  diskSizeGb?: number
+  allowHttp?: boolean
+  allowHttps?: boolean
   provisioning?: { profileName: string }
   extra?: Record<string, string>
 }

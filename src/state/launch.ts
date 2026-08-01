@@ -12,6 +12,9 @@ export interface LaunchSpec {
   machineType: string
   imageFamily: string
   imageProject: string
+  diskSizeGb?: number
+  allowHttp: boolean
+  allowHttps: boolean
   provisioning: ProvisioningProfile
 }
 
@@ -133,6 +136,9 @@ export async function beginLaunch(spec: LaunchSpec) {
       zone: spec.zone,
       size: spec.machineType,
       image: `${spec.imageFamily}|${spec.imageProject}`,
+      diskSizeGb: spec.diskSizeGb,
+      allowHttp: spec.allowHttp,
+      allowHttps: spec.allowHttps,
       extra,
     })
     resolveLast("changed")
