@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
-import { palette } from "../theme"
+import { glyph, palette } from "../theme"
+import { Spinner } from "./Spinner"
 
 /**
  * A labelled control row: a right-padded label followed by a fixed-size cell
@@ -35,6 +36,30 @@ export function Field({
         {children}
       </box>
     </box>
+  )
+}
+
+/**
+ * A Field whose value is chosen from a fuzzy SearchModal — the ⌕ affordance
+ * signals "enter to search". While `busy`, a spinner replaces the glyph (e.g.
+ * loading options from the network). The caller owns the modal + selection.
+ */
+export function PickerField({
+  label,
+  value,
+  focused,
+  busy,
+}: {
+  label: string
+  value: string
+  focused: boolean
+  busy?: boolean
+}) {
+  return (
+    <Field label={label} focused={focused}>
+      <text fg={palette.starlight}>{value}</text>
+      {busy ? <Spinner /> : <text fg={focused ? palette.beacon : palette.hairline}>{glyph.search}</text>}
+    </Field>
   )
 }
 

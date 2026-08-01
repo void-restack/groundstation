@@ -1,7 +1,7 @@
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useState } from "react"
 import { listZones } from "../adapters/gcloud"
-import { Field } from "../components/Field"
+import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
 import { SearchModal, type SearchItem } from "../components/SearchModal"
 import { Spinner } from "../components/Spinner"
@@ -106,30 +106,6 @@ function Ignition({ spec }: { spec: LaunchSpec }) {
         <text fg={palette.static}>running… launch is unattended, sit back</text>
       )}
     </box>
-  )
-}
-
-/** A form row whose value is chosen from a fuzzy search modal (⌕ opens it). */
-function PickerField({
-  label,
-  value,
-  focused,
-  busy,
-}: {
-  label: string
-  value: string
-  focused: boolean
-  busy?: boolean
-}) {
-  return (
-    <Field label={label} focused={focused}>
-      <text fg={palette.starlight}>{value}</text>
-      {busy ? (
-        <Spinner />
-      ) : (
-        <text fg={focused ? palette.beacon : palette.hairline}>{glyph.search}</text>
-      )}
-    </Field>
   )
 }
 

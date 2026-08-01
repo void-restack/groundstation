@@ -5,7 +5,8 @@ import { join } from "path"
 import { useMemo, useState } from "react"
 import { config, detectSshKeys, getPersisted, type PersistedConfig } from "../config"
 import { glyph, palette } from "../theme"
-import { Field, SelectField } from "./Field"
+import { Field, PickerField } from "./Field"
+import { SearchModal, type SearchItem } from "./SearchModal"
 
 const FIELD_COUNT = 5
 
@@ -14,58 +15,60 @@ function shortPath(p: string): string {
   return home && p.startsWith(home) ? `~${p.slice(home.length)}` : p
 }
 
+const NONE_LABEL = "(none — ssh agent/config)"
+
 /**
  * The shared mission-config form, used by both the first-run setup and the
  * settings screen. Text fields are seeded once from the persisted profile and
  * read back via onInput (uncontrolled — a stable `value` never re-applies, so
- * edits survive re-renders). The SSH key is chosen from detected ~/.ssh keys.
- * Blank text fields persist as `null`, i.e. "auto-detect".
+ * edits survive re-renders). The SSH key is chosen from a fuzzy modal over the
+ * detected ~/.ssh keys. Blank text fields persist as `null`, i.e. "auto-detect".
+ *
+ * `enabled` lets a parent (e.g. an overlay modal) freeze the form's keyboard.
  */
 export function ConfigForm({
   onSave,
   onCancel,
   saveLabel = "save",
   cancelLabel = "cancel",
+  enabled = true,
 }: {
   onSave: (patch: Partial<PersistedConfig>) => void
   onCancel: () => void
   saveLabel?: string
   cancelLabel?: string
+  enabled?: boolean
 }) {
   const init = useMemo(() => getPersisted(), [])
   const keys = useMemo(() => detectSshKeys(), [])
-  const sshOptions = useMemo(() => ["(none — ssh agent/config)", ...keys.map(shortPath)], [keys])
+  const sshItems = useMemo<SearchItem<string | null>[]>(
+    () => [{ value: null, label: NONE_LABEL }, ...keys.map((k) => ({ value: k, label: shortPath(k) }))],
+    [keys],
+  )
 
   const [focus, setFocus] = useState(0)
+  const [sshPickerOpen, setSshPickerOpen] = useState(false)
   const [ansibleDir, setAnsibleDir] = useState(init.ansibleDir ?? "")
+  const [sshKey, setSshKey] = useState<string | null>(init.sshKey ?? null)
   const [deployUser, setDeployUser] = useState(init.deployUser ?? "")
   const [bootstrapUser, setBootstrapUser] = useState(init.bootstrapUser ?? "")
   const [port, setPort] = useState(String(init.port))
-  const [sshIdx, setSshIdx] = useState(() => {
-    if (!init.sshKey) return 0
-    const i = keys.indexOf(init.sshKey)
-    return i >= 0 ? i + 1 : 0
-  })
 
   const save = () =>
     onSave({
       ansibleDir: ansibleDir.trim() || null,
-      sshKey: sshIdx === 0 ? null : (keys[sshIdx - 1] ?? null),
+      sshKey,
       deployUser: deployUser.trim() || null,
       bootstrapUser: bootstrapUser.trim() || null,
       port: Number(port) || init.port,
     })
 
   useKeyboard((key) => {
+    if (!enabled || sshPickerOpen) return // frozen while an overlay/picker owns input
     if (key.name === "escape") return onCancel()
-    if (key.name === "return") return save()
     if (key.name === "tab" || key.name === "down") return setFocus((f) => (f + 1) % FIELD_COUNT)
     if (key.name === "up") return setFocus((f) => (f - 1 + FIELD_COUNT) % FIELD_COUNT)
-    // ←/→ cycle the ssh-key select only; text fields keep them for the cursor
-    if (focus === 1 && (key.name === "left" || key.name === "right")) {
-      const dir = key.name === "right" ? 1 : -1
-      return setSshIdx((i) => (i + dir + sshOptions.length) % sshOptions.length)
-    }
+    if (key.name === "return") return focus === 1 ? setSshPickerOpen(true) : save()
   })
 
   const dir = ansibleDir.trim()
@@ -79,7 +82,7 @@ export function ConfigForm({
     <box flexDirection="column" gap={1}>
       <Field label="ANSIBLE" focused={focus === 0}>
         <input
-          focused={focus === 0}
+          focused={focus === 0 && enabled && !sshPickerOpen}
           flexGrow={1}
           value={init.ansibleDir ?? ""}
           placeholder="~/path/to/ansible"
@@ -88,11 +91,11 @@ export function ConfigForm({
       </Field>
       <text fg={ansibleState.color}>{`  ${ansibleState.text}`}</text>
 
-      <SelectField label="SSH KEY" value={sshOptions[sshIdx]!} focused={focus === 1} />
+      <PickerField label="SSH KEY" value={sshKey ? shortPath(sshKey) : NONE_LABEL} focused={focus === 1} />
 
       <Field label="DEPLOY" focused={focus === 2}>
         <input
-          focused={focus === 2}
+          focused={focus === 2 && enabled && !sshPickerOpen}
           flexGrow={1}
           value={init.deployUser ?? ""}
           placeholder={config.deployUser}
@@ -101,7 +104,7 @@ export function ConfigForm({
       </Field>
       <Field label="BOOTSTRAP" focused={focus === 3}>
         <input
-          focused={focus === 3}
+          focused={focus === 3 && enabled && !sshPickerOpen}
           flexGrow={1}
           value={init.bootstrapUser ?? ""}
           placeholder={config.bootstrapUser}
@@ -109,12 +112,28 @@ export function ConfigForm({
         />
       </Field>
       <Field label="PORT" focused={focus === 4}>
-        <input focused={focus === 4} flexGrow={1} value={String(init.port)} placeholder="2222" onInput={setPort} />
+        <input
+          focused={focus === 4 && enabled && !sshPickerOpen}
+          flexGrow={1}
+          value={String(init.port)}
+          placeholder="2222"
+          onInput={setPort}
+        />
       </Field>
 
       <text fg={palette.static} marginTop={1}>
-        ↑↓/tab move {glyph.sep} ◂ ▸ ssh key {glyph.sep} enter {saveLabel} {glyph.sep} esc {cancelLabel}
+        ↑↓/tab move {glyph.sep} enter {glyph.search} ssh key / {saveLabel} {glyph.sep} esc {cancelLabel}
       </text>
+
+      {sshPickerOpen ? (
+        <SearchModal<string | null>
+          title="SELECT SSH KEY"
+          placeholder="filter keys…"
+          items={sshItems}
+          onPick={setSshKey}
+          onClose={() => setSshPickerOpen(false)}
+        />
+      ) : null}
     </box>
   )
 }
