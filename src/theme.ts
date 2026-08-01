@@ -79,6 +79,7 @@ export const glyph = {
   meterEmpty: "⋅",
   hardened: "⛨",
   sep: "·",
+  search: "⌕",
   vsep: "│",
   dotsep: "⋮",
   arrowRight: "→",
