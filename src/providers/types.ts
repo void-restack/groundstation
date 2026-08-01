@@ -15,8 +15,10 @@ export interface CreateSpec {
   size: string
   image: string
   diskSizeGb?: number
+  diskType?: string
   allowHttp?: boolean
   allowHttps?: boolean
+  spot?: boolean
   provisioning?: { profileName: string }
   extra?: Record<string, string>
 }
@@ -74,5 +76,6 @@ export interface Provider {
   listRegions(): Promise<Choice[]>
   listZones(region: string): Promise<Choice[]>
   listSizes(region: string): Promise<Choice[]>
+  listDiskTypes(region: string): Promise<Choice[]>
   listImages(region: string): Promise<Choice[]>
 }

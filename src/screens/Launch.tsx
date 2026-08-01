@@ -18,18 +18,20 @@ import { setScreen } from "../state/ui"
 import { glyph, palette } from "../theme"
 
 type Stage = "form" | "preflight" | "ignition"
-type Picker = "zone" | "machine" | "image" | "disk" | "firewall" | "provision"
+type Picker = "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
 
-const DISKS = ["default", "10", "20", "30", "50", "100", "200", "500"]
 const FIREWALLS: { value: Firewall; label: string }[] = [
   { value: { http: false, https: false }, label: "none" },
   { value: { http: true, https: false }, label: "http (80)" },
   { value: { http: false, https: true }, label: "https (443)" },
   { value: { http: true, https: true }, label: "http + https" },
 ]
-const diskLabel = (d: string) => (d === "default" ? "default (image size)" : `${d} GB`)
+const SPOTS: { value: boolean; label: string }[] = [
+  { value: false, label: "standard" },
+  { value: true, label: "spot (cheap, preemptible)" },
+]
 
 const FALLBACK_ZONES = [
   "us-central1-a", "us-central1-b", "us-central1-c", "us-east1-b", "us-west1-a",
@@ -44,8 +46,8 @@ const IMAGES: Image[] = [
   { label: "ubuntu-24.04-lts", family: "ubuntu-2404-lts", project: "ubuntu-os-cloud" },
 ]
 
-// fields the form arrow-navigates: NAME, ZONE, MACHINE, IMAGE, DISK, FIREWALL, PROVISION, CONTINUE
-const FIELD_COUNT = 8
+// fields: NAME, ZONE, MACHINE, IMAGE, DISK, DISK-TYPE, FIREWALL, SPOT, PROVISION, CONTINUE
+const FIELD_COUNT = 10
 
 const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1)
 
@@ -133,12 +135,19 @@ export function Launch() {
   const [zone, setZone] = useState(FALLBACK_ZONES[0]!)
   const [machine, setMachine] = useState(MACHINES[0]!)
   const [image, setImage] = useState<Image>(IMAGES[0]!)
-  const [disk, setDisk] = useState("default")
+  const [disk, setDisk] = useState("")
+  const [diskType, setDiskType] = useState("")
   const [firewall, setFirewall] = useState<Firewall>({ http: false, https: false })
+  const [spot, setSpot] = useState(false)
   const [provisioning, setProvisioning] = useState<ProvisioningProfile>({ name: "none", kind: "none" })
+
+  const [diskTypeItems, setDiskTypeItems] = useState<SearchItem<string>[]>([{ value: "", label: "default (image default)" }])
+  const [diskTypesLoading, setDiskTypesLoading] = useState(true)
 
   const firewallLabel =
     FIREWALLS.find((f) => f.value.http === firewall.http && f.value.https === firewall.https)?.label ?? "none"
+  const diskTypeLabel = diskTypeItems.find((d) => d.value === diskType)?.label ?? (diskType || "default")
+  const spotLabel = SPOTS.find((s) => s.value === spot)?.label ?? "standard"
 
   const [zones, setZones] = useState<string[]>(FALLBACK_ZONES)
   const [zonesLoading, setZonesLoading] = useState(true)
@@ -206,15 +215,34 @@ export function Launch() {
     }
   }, [zone])
 
+  useEffect(() => {
+    let alive = true
+    setDiskTypesLoading(true)
+    getProvider()
+      .listDiskTypes(zone)
+      .then((types) => {
+        if (alive && types.length) setDiskTypeItems(types)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setDiskTypesLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [zone])
+
   const buildSpec = (): LaunchSpec => ({
     name: name.trim(),
     zone,
     machineType: machine,
     imageFamily: image.family,
     imageProject: image.project,
-    diskSizeGb: disk === "default" ? undefined : Number(disk),
+    diskSizeGb: Number(disk) || undefined,
+    diskType: diskType || undefined,
     allowHttp: firewall.http,
     allowHttps: firewall.https,
+    spot,
     provisioning,
   })
 
@@ -231,10 +259,11 @@ export function Launch() {
     if (focus === 1) setPicker("zone")
     else if (focus === 2) setPicker("machine")
     else if (focus === 3) setPicker("image")
-    else if (focus === 4) setPicker("disk")
-    else if (focus === 5) setPicker("firewall")
-    else if (focus === 6) setPicker("provision")
-    else proceed() // NAME (0) or CONTINUE (7)
+    else if (focus === 5) setPicker("disktype")
+    else if (focus === 6) setPicker("firewall")
+    else if (focus === 7) setPicker("spot")
+    else if (focus === 8) setPicker("provision")
+    else proceed() // NAME (0), DISK (4), CONTINUE (9)
   }
 
   useKeyboard((key) => {
@@ -276,13 +305,17 @@ export function Launch() {
           <PickerField label="ZONE" value={zone} focused={focus === 1} busy={zonesLoading} />
           <PickerField label="MACHINE" value={machine} focused={focus === 2} busy={machinesLoading} />
           <PickerField label="IMAGE" value={image.label} focused={focus === 3} />
-          <PickerField label="DISK" value={diskLabel(disk)} focused={focus === 4} />
-          <PickerField label="FIREWALL" value={firewallLabel} focused={focus === 5} />
-          <PickerField label="PROVISION" value={provisionLabel} focused={focus === 6} />
+          <Field label="DISK GB" focused={focus === 4}>
+            <input focused={focus === 4 && !picker} flexGrow={1} placeholder="default (image size)" onInput={setDisk} />
+          </Field>
+          <PickerField label="DISK TYPE" value={diskTypeLabel} focused={focus === 5} busy={diskTypesLoading} />
+          <PickerField label="FIREWALL" value={firewallLabel} focused={focus === 6} />
+          <PickerField label="SPOT" value={spotLabel} focused={focus === 7} />
+          <PickerField label="PROVISION" value={provisionLabel} focused={focus === 8} />
 
           <box flexDirection="row" gap={1} marginTop={1}>
-            <text fg={focus === 7 ? palette.nominal : palette.static}>
-              {focus === 7 ? glyph.arrowRight : " "} REVIEW & LAUNCH
+            <text fg={focus === 9 ? palette.nominal : palette.static}>
+              {focus === 9 ? glyph.arrowRight : " "} REVIEW & LAUNCH
             </text>
             {!name.trim() ? <text fg={palette.hairline}>{glyph.sep} name required</text> : null}
           </box>
@@ -306,8 +339,8 @@ export function Launch() {
           <text fg={palette.static}>zone {glyph.arrowRight} <span fg={palette.starlight}>{spec.zone}</span></text>
           <text fg={palette.static}>machine {glyph.arrowRight} <span fg={palette.starlight}>{spec.machineType}</span></text>
           <text fg={palette.static}>image {glyph.arrowRight} <span fg={palette.starlight}>{spec.imageFamily}</span> ({spec.imageProject})</text>
-          <text fg={palette.static}>disk {glyph.arrowRight} <span fg={palette.starlight}>{diskLabel(disk)}</span></text>
-          <text fg={palette.static}>firewall {glyph.arrowRight} <span fg={palette.starlight}>{firewallLabel}</span></text>
+          <text fg={palette.static}>disk {glyph.arrowRight} <span fg={palette.starlight}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
+          <text fg={palette.static}>firewall {glyph.arrowRight} <span fg={palette.starlight}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>
           <text fg={palette.static}>provision {glyph.arrowRight} <span fg={palette.starlight}>{provisionLabel}</span></text>
           <text fg={palette.beacon} marginTop={1}>[Enter] IGNITION {glyph.sep} [esc] revise</text>
         </box>
@@ -337,12 +370,12 @@ export function Launch() {
           onPick={setImage}
           onClose={() => setPicker(null)}
         />
-      ) : picker === "disk" ? (
+      ) : picker === "disktype" ? (
         <SearchModal<string>
-          title="SELECT DISK SIZE"
-          placeholder="filter sizes…"
-          items={DISKS.map((d) => ({ value: d, label: diskLabel(d) }))}
-          onPick={setDisk}
+          title="SELECT DISK TYPE"
+          placeholder={diskTypesLoading ? "loading disk types…" : "standard · balanced · ssd…"}
+          items={diskTypeItems}
+          onPick={setDiskType}
           onClose={() => setPicker(null)}
         />
       ) : picker === "firewall" ? (
@@ -351,6 +384,14 @@ export function Launch() {
           placeholder="none · http · https…"
           items={FIREWALLS}
           onPick={setFirewall}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "spot" ? (
+        <SearchModal<boolean>
+          title="SELECT PROVISIONING MODEL"
+          placeholder="standard · spot…"
+          items={SPOTS}
+          onPick={setSpot}
           onClose={() => setPicker(null)}
         />
       ) : picker === "provision" ? (

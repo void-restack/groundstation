@@ -151,6 +151,8 @@ export const gcp: Provider = {
       imageProject: project,
       userDataFile: spec.extra?.["user-data"],
       diskSizeGb: spec.diskSizeGb,
+      diskType: spec.diskType,
+      spot: spec.spot,
       tags,
     })
     return { id: spec.name, name: spec.name }
@@ -204,6 +206,22 @@ export const gcp: Provider = {
     ]).catch(() => [])
     types.sort((a, b) => a.guestCpus - b.guestCpus || a.name.localeCompare(b.name))
     return types.map((t) => ({ value: t.name, label: t.name, hint: `${t.guestCpus} vCPU · ${gbOf(t.memoryMb)}` }))
+  },
+
+  async listDiskTypes(zone: string): Promise<Choice[]> {
+    const disks = await execJSON<Array<{ name: string; description?: string }>>([
+      "gcloud", "compute", "disk-types", "list",
+      ...(zone ? [`--zones=${zone}`] : []),
+      "--format=json",
+    ]).catch(() => [])
+    const seen = new Set<string>()
+    const out: Choice[] = [{ value: "", label: "default (image default)" }]
+    for (const d of disks) {
+      if (seen.has(d.name)) continue
+      seen.add(d.name)
+      out.push({ value: d.name, label: d.name, hint: d.description })
+    }
+    return out
   },
 
   async listImages(): Promise<Choice[]> {

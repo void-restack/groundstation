@@ -310,17 +310,32 @@ test("createArgs adds boot-disk size, network tags, and cloud-init metadata when
   const full = createArgs({
     name: "x", zone: "us-central1-a", machineType: "e2-micro",
     imageFamily: "debian-12", imageProject: "debian-cloud",
-    diskSizeGb: 50, tags: ["http-server", "https-server"], userDataFile: "/tmp/c.yml",
+    diskSizeGb: 50, diskType: "pd-ssd", spot: true,
+    tags: ["http-server", "https-server"], userDataFile: "/tmp/c.yml",
   })
   expect(full).toContain("--boot-disk-size=50GB")
+  expect(full).toContain("--boot-disk-type=pd-ssd")
+  expect(full).toContain("--provisioning-model=SPOT")
   expect(full).toContain("--tags=http-server,https-server")
   expect(full).toContain("user-data=/tmp/c.yml")
+  expect(full).toContain("--machine-type=e2-micro")
 
   const bare = createArgs({
     name: "x", zone: "z", machineType: "m", imageFamily: "f", imageProject: "p",
   })
   expect(bare.some((a) => a.startsWith("--boot-disk-size"))).toBe(false)
   expect(bare.some((a) => a.startsWith("--tags"))).toBe(false)
+  expect(bare.some((a) => a.startsWith("--provisioning-model"))).toBe(false)
+})
+
+test("createArgs uses custom cpu/memory instead of a machine type when set", () => {
+  const custom = createArgs({
+    name: "x", zone: "z", machineType: "ignored",
+    imageFamily: "f", imageProject: "p", customCpu: 4, customMemoryGb: 8,
+  })
+  expect(custom).toContain("--custom-cpu=4")
+  expect(custom).toContain("--custom-memory=8GB")
+  expect(custom.some((a) => a.startsWith("--machine-type"))).toBe(false)
 })
 
 test("lifecycleArgs builds a zoned, --quiet gcloud command (no TTY prompt)", () => {

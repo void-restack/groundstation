@@ -83,22 +83,24 @@ export interface CreateInstanceOpts {
   imageProject: string
   userDataFile?: string
   diskSizeGb?: number
+  diskType?: string
   tags?: string[]
+  spot?: boolean
+  customCpu?: number
+  customMemoryGb?: number
 }
 
 export function createArgs(opts: CreateInstanceOpts): string[] {
-  const args = [
-    "gcloud",
-    "compute",
-    "instances",
-    "create",
-    opts.name,
-    `--zone=${opts.zone}`,
-    `--machine-type=${opts.machineType}`,
-    `--image-family=${opts.imageFamily}`,
-    `--image-project=${opts.imageProject}`,
-  ]
+  const args = ["gcloud", "compute", "instances", "create", opts.name, `--zone=${opts.zone}`]
+  if (opts.customCpu && opts.customMemoryGb) {
+    args.push(`--custom-cpu=${opts.customCpu}`, `--custom-memory=${opts.customMemoryGb}GB`)
+  } else {
+    args.push(`--machine-type=${opts.machineType}`)
+  }
+  args.push(`--image-family=${opts.imageFamily}`, `--image-project=${opts.imageProject}`)
   if (opts.diskSizeGb) args.push(`--boot-disk-size=${opts.diskSizeGb}GB`)
+  if (opts.diskType) args.push(`--boot-disk-type=${opts.diskType}`)
+  if (opts.spot) args.push("--provisioning-model=SPOT")
   if (opts.tags && opts.tags.length) args.push(`--tags=${opts.tags.join(",")}`)
   if (opts.userDataFile) args.push("--metadata-from-file", `user-data=${opts.userDataFile}`)
   return args
