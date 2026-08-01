@@ -54,7 +54,7 @@ export function Board() {
         return moveSelection(names, 1)
       case "p":
         if (!capabilities.canProvision) {
-          logEvent({ server: null, level: "caution", message: "provisioning unavailable — set an ansible dir in settings ( , )" })
+          logEvent({ server: null, level: "caution", message: "provisioning needs an ansible playbook dir — settings [ , ] → ANSIBLE" })
           return
         }
         return setScreen("launch")

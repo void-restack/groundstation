@@ -1,6 +1,7 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useState } from "react"
 import { detectTools, installCommand, installTool, type ToolStatus } from "../adapters/tools"
+import { useCapabilities } from "../state/config"
 import { pushToast } from "../state/toast"
 import { setTools } from "../state/ui"
 import { glyph, palette } from "../theme"
@@ -14,6 +15,7 @@ import { Spinner } from "./Spinner"
  */
 export function ToolsModal() {
   const renderer = useRenderer()
+  const caps = useCapabilities()
   const [statuses, setStatuses] = useState<ToolStatus[]>(() => detectTools())
   const [index, setIndex] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -85,6 +87,20 @@ export function ToolsModal() {
         ) : (
           <text fg={palette.caution}>no auto-installer — {current.spec.docs}</text>
         )}
+        {/* the ansible *binary* being present is separate from having a playbook
+            dir configured; spell that out so "ansible ✓" doesn't look like a lie
+            next to "sweep unavailable" */}
+        {current.spec.id === "ansible" && current.path ? (
+          caps.canProvision ? (
+            <text fg={palette.nominal} wrapMode="word">
+              provisioning + sweep ready {glyph.sep} playbook dir configured
+            </text>
+          ) : (
+            <text fg={palette.caution} wrapMode="word">
+              binary ✓ — Launch/Update also need a playbook dir (settings [ , ] → ANSIBLE)
+            </text>
+          )
+        ) : null}
       </box>
     </Dialog>
   )

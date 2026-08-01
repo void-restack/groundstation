@@ -16,7 +16,7 @@ interface Command {
   hint?: string
 }
 
-const NO_ANSIBLE = "set an ansible dir in settings ( , )"
+const NO_ANSIBLE = "needs an ansible playbook dir — settings [ , ]"
 
 export function CommandPalette() {
   const [query, setQuery] = useState("")

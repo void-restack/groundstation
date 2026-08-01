@@ -7,7 +7,7 @@ let sweeping = false
 export async function updateAll() {
   if (sweeping) return
   if (!capabilities.canUpdate) {
-    logEvent({ server: null, level: "caution", message: "sweep unavailable — set an ansible dir in settings ( , )" })
+    logEvent({ server: null, level: "caution", message: "sweep needs an ansible playbook dir — settings [ , ] → ANSIBLE" })
     return
   }
   sweeping = true

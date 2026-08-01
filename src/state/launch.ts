@@ -91,7 +91,7 @@ async function settle(name: string, timeoutMs = 120000): Promise<boolean> {
 export async function beginLaunch(spec: LaunchSpec) {
   if (running) return
   if (!capabilities.canProvision) {
-    logEvent({ server: spec.name, level: "caution", message: "provisioning unavailable — set an ansible dir in settings ( , )" })
+    logEvent({ server: spec.name, level: "caution", message: "provisioning needs an ansible playbook dir — settings [ , ] → ANSIBLE" })
     return
   }
   running = true
