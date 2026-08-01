@@ -132,6 +132,14 @@ export const gcp: Provider = {
     return serverToInstance(found, account)
   },
 
+  async serialConsole(inst: Instance): Promise<string> {
+    const args = ["gcloud", "compute", "instances", "get-serial-port-output", inst.name]
+    if (inst.zone) args.push(`--zone=${inst.zone}`)
+    const { stdout, stderr, code } = await exec(args)
+    if (code !== 0) throw new Error(stderr.trim() || `serial console failed (${code})`)
+    return stdout
+  },
+
   async create(spec: CreateSpec): Promise<{ id: string; name: string }> {
     const zone = spec.zone ?? spec.region
     if (!zone) throw new Error("gcp create requires a zone")

@@ -43,6 +43,13 @@ export const VESSEL_ACTIONS: VesselAction[] = [
     run: async (inst) => showDetail(`DESCRIBE · ${inst.name}`, describeLines(inst)),
   },
   {
+    id: "serial", label: "Serial console", kind: "read",
+    run: async (inst) => {
+      const out = await getProvider().serialConsole(inst)
+      showDetail(`SERIAL · ${inst.name}`, out.split("\n").slice(-400))
+    },
+  },
+  {
     id: "start", label: "Start", kind: "mutate", confirm: "yn",
     billing: "resumes compute billing",
     enabled: (i) => i.state === "stopped" || i.state === "terminated",

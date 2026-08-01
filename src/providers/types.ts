@@ -54,6 +54,7 @@ export interface Provider {
 
   listInstances(): Promise<Instance[]>
   describe(id: string): Promise<Instance>
+  serialConsole(inst: Instance): Promise<string>
 
   create(spec: CreateSpec): Promise<{ id: string; name: string }>
   start(inst: Instance): Promise<void>
