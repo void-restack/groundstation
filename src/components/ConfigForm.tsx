@@ -1,7 +1,6 @@
 import { useKeyboard } from "@opentui/react"
 import { existsSync } from "fs"
 import { homedir } from "os"
-import { join } from "path"
 import { useMemo, useState } from "react"
 import { config, detectSshKeys, expandHome, getPersisted, type PersistedConfig } from "../config"
 import { glyph, palette } from "../theme"
@@ -17,11 +16,18 @@ function shortPath(p: string): string {
 
 const NONE_LABEL = "(none — ssh agent/config)"
 
+function fileState(raw: string, hint: string) {
+  const path = expandHome(raw.trim())
+  if (!path) return { text: `optional — ${hint}`, color: palette.static }
+  return existsSync(path)
+    ? { text: "✓ file found", color: palette.nominal }
+    : { text: "✗ file not found", color: palette.flare }
+}
+
 /**
  * The shared mission-config form, used by both the first-run setup and the
  * settings screen. Text fields are seeded once from the persisted profile and
- * read back via onInput (uncontrolled — a stable `value` never re-applies, so
- * edits survive re-renders). The SSH key is chosen from a fuzzy modal over the
+ * read back via onInput. The SSH key is chosen from a fuzzy modal over the
  * detected ~/.ssh keys. Blank text fields persist as `null`, i.e. "auto-detect".
  *
  * `enabled` lets a parent (e.g. an overlay modal) freeze the form's keyboard.
@@ -48,18 +54,18 @@ export function ConfigForm({
 
   const [focus, setFocus] = useState(0)
   const [sshPickerOpen, setSshPickerOpen] = useState(false)
-  const [ansibleDir, setAnsibleDir] = useState(init.ansibleDir ?? "")
+  const [cloudInitFile, setCloudInitFile] = useState(init.cloudInitFile ?? "")
   const [sshKey, setSshKey] = useState<string | null>(init.sshKey ?? null)
   const [deployUser, setDeployUser] = useState(init.deployUser ?? "")
-  const [bootstrapUser, setBootstrapUser] = useState(init.bootstrapUser ?? "")
+  const [shellScript, setShellScript] = useState(init.shellScript ?? "")
   const [port, setPort] = useState(String(init.port))
 
   const save = () =>
     onSave({
-      ansibleDir: ansibleDir.trim() || null,
+      cloudInitFile: cloudInitFile.trim() || null,
       sshKey,
       deployUser: deployUser.trim() || null,
-      bootstrapUser: bootstrapUser.trim() || null,
+      shellScript: shellScript.trim() || null,
       port: Number(port) || init.port,
     })
 
@@ -71,25 +77,21 @@ export function ConfigForm({
     if (key.name === "return") return focus === 1 ? setSshPickerOpen(true) : save()
   })
 
-  const dir = expandHome(ansibleDir.trim())
-  const ansibleState = !dir
-    ? { text: "optional — enables Launch + Update", color: palette.static }
-    : existsSync(join(dir, config.provisionPlaybook))
-      ? { text: "✓ provisioning enabled", color: palette.nominal }
-      : { text: "✗ provision playbook not found here", color: palette.flare }
+  const ciState = fileState(cloudInitFile, "cloud-config injected at first boot")
+  const shellState = fileState(shellScript, "script run over ssh after boot")
 
   return (
     <box flexDirection="column" gap={1}>
-      <Field label="ANSIBLE" focused={focus === 0}>
+      <Field label="CLOUD-INIT" focused={focus === 0}>
         <input
           focused={focus === 0 && enabled && !sshPickerOpen}
           flexGrow={1}
-          value={init.ansibleDir ?? ""}
-          placeholder="~/path/to/ansible"
-          onInput={setAnsibleDir}
+          value={init.cloudInitFile ?? ""}
+          placeholder="~/path/to/cloud-config.yml"
+          onInput={setCloudInitFile}
         />
       </Field>
-      <text fg={ansibleState.color}>{`  ${ansibleState.text}`}</text>
+      <text fg={ciState.color}>{`  ${ciState.text}`}</text>
 
       <PickerField label="SSH KEY" value={sshKey ? shortPath(sshKey) : NONE_LABEL} focused={focus === 1} />
 
@@ -102,15 +104,17 @@ export function ConfigForm({
           onInput={setDeployUser}
         />
       </Field>
-      <Field label="BOOTSTRAP" focused={focus === 3}>
+      <Field label="SHELL" focused={focus === 3}>
         <input
           focused={focus === 3 && enabled && !sshPickerOpen}
           flexGrow={1}
-          value={init.bootstrapUser ?? ""}
-          placeholder={config.bootstrapUser}
-          onInput={setBootstrapUser}
+          value={init.shellScript ?? ""}
+          placeholder="~/path/to/setup.sh"
+          onInput={setShellScript}
         />
       </Field>
+      <text fg={shellState.color}>{`  ${shellState.text}`}</text>
+
       <Field label="PORT" focused={focus === 4}>
         <input
           focused={focus === 4 && enabled && !sshPickerOpen}

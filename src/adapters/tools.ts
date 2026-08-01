@@ -31,20 +31,6 @@ export const TOOLS: ToolSpec[] = [
     install: { darwin: "brew install --cask google-cloud-sdk" },
   },
   {
-    id: "ansible",
-    bin: "ansible-playbook",
-    label: "ansible",
-    purpose: "provisioning + constellation sweep",
-    required: false,
-    docs: "https://docs.ansible.com/ansible/latest/installation_guide/",
-    install: {
-      darwin: "brew install ansible",
-      "linux-apt": "sudo apt-get update && sudo apt-get install -y ansible",
-      "linux-dnf": "sudo dnf install -y ansible",
-      "linux-pacman": "sudo pacman -S --noconfirm ansible",
-    },
-  },
-  {
     id: "ssh",
     bin: "ssh",
     label: "ssh",

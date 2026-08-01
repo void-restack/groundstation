@@ -187,7 +187,7 @@ test("ConfigForm renders the mission-config fields", async () => {
   try {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
-    expect(frame).toContain("ANSIBLE")
+    expect(frame).toContain("CLOUD-INIT")
     expect(frame).toContain("SSH KEY")
     expect(frame).toContain("PORT")
   } finally {
@@ -202,7 +202,7 @@ test("ToolsModal lists the external dependencies with status", async () => {
     const frame = setup.captureCharFrame()
     expect(frame).toContain("MISSION DEPENDENCIES")
     expect(frame).toContain("gcloud")
-    expect(frame).toContain("ansible")
+    expect(frame).toContain("ssh")
   } finally {
     setup.renderer.destroy()
   }

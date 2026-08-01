@@ -142,6 +142,7 @@ export const gcp: Provider = {
       machineType: spec.size,
       imageFamily: family,
       imageProject: project,
+      userDataFile: spec.extra?.["user-data"],
     })
     return { id: spec.name, name: spec.name }
   },

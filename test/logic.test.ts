@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test"
-import { parseLine } from "../src/adapters/ansible"
 import { TOOLS, detectTool, installCommand } from "../src/adapters/tools"
-import { computeCapabilities, config, expandHome, resolveConfig, type PersistedConfig } from "../src/config"
+import { config, expandHome, resolveConfig, type PersistedConfig } from "../src/config"
 import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
@@ -18,9 +17,8 @@ import type { Server } from "../src/domain"
 
 const basePersisted: PersistedConfig = {
   schemaVersion: 1,
-  ansibleDir: null,
-  provisionPlaybook: "playbooks/provision-server.yml",
-  bootstrapUser: null,
+  cloudInitFile: null,
+  shellScript: null,
   deployUser: null,
   sshKey: null,
   authorizedKeys: null,
@@ -105,18 +103,11 @@ test("expandHome expands a leading ~ so existsSync-based checks work", () => {
   expect(expandHome(null)).toBeNull()
 })
 
-test("resolveConfig expands ~ in ansibleDir so a tilde path enables provisioning", () => {
-  withEnv({ GND_ANSIBLE_DIR: undefined }, () => {
-    const c = resolveConfig({ ...basePersisted, ansibleDir: "~/x/ansible" })
-    expect(c.ansibleDir?.startsWith("~")).toBe(false)
-    expect(c.ansibleDir?.endsWith("/x/ansible")).toBe(true)
-  })
-})
-
-test("computeCapabilities: no ansible dir disables provisioning", () => {
-  withEnv({ GND_ANSIBLE_DIR: undefined }, () => {
-    const caps = computeCapabilities(resolveConfig(basePersisted))
-    expect(caps.canProvision).toBe(false)
+test("resolveConfig expands ~ in cloudInitFile so a tilde path resolves", () => {
+  withEnv({ GND_CLOUD_INIT: undefined }, () => {
+    const c = resolveConfig({ ...basePersisted, cloudInitFile: "~/x/cloud.yml" })
+    expect(c.cloudInitFile?.startsWith("~")).toBe(false)
+    expect(c.cloudInitFile?.endsWith("/x/cloud.yml")).toBe(true)
   })
 })
 
@@ -137,8 +128,8 @@ test("summarizeError falls back to the first ERROR line, trimmed", () => {
   expect(message).toBe("quota exceeded for region")
 })
 
-test("tool registry covers gcloud/ansible/ssh", () => {
-  expect(TOOLS.map((t) => t.id).sort()).toEqual(["ansible", "gcloud", "ssh"])
+test("tool registry covers gcloud/ssh", () => {
+  expect(TOOLS.map((t) => t.id).sort()).toEqual(["gcloud", "ssh"])
 })
 
 test("detectTool resolves present binaries on PATH and nulls missing ones", () => {
@@ -147,27 +138,13 @@ test("detectTool resolves present binaries on PATH and nulls missing ones", () =
 })
 
 test("installCommand is a package-manager command or null (never a curl|bash)", () => {
-  const cmd = installCommand(TOOLS.find((t) => t.id === "ansible")!)
-  expect(cmd === null || cmd.includes("ansible")).toBe(true)
-  if (cmd) expect(cmd).not.toContain("curl")
-})
-
-test("parseLine recognises ansible output", () => {
-  expect(parseLine("TASK [base : Install essential packages] ****")).toEqual({
-    type: "task",
-    role: "base",
-    name: "Install essential packages",
-  })
-  expect(parseLine("TASK [Gathering Facts] ***")).toEqual({
-    type: "task",
-    role: null,
-    name: "Gathering Facts",
-  })
-  expect(parseLine("changed: [lab]")).toEqual({ type: "result", state: "changed", host: "lab" })
-  expect(parseLine("ok: [lab]")).toEqual({ type: "result", state: "ok", host: "lab" })
-  expect(parseLine("fatal: [lab]: FAILED! => {}")).toMatchObject({ type: "result", state: "failed" })
-  expect(parseLine("PLAY RECAP ***")).toEqual({ type: "recap", failures: 0 })
-  expect(parseLine("some noise")).toEqual({ type: "log", line: "some noise" })
+  for (const t of TOOLS) {
+    const cmd = installCommand(t)
+    if (cmd) {
+      expect(cmd).not.toContain("curl")
+      expect(cmd).not.toContain("| bash")
+    }
+  }
 })
 
 function fakeServer(over: Partial<Server> = {}): Server {
@@ -277,7 +254,7 @@ test("shell provisioner fails cleanly when the profile has no script", async () 
   expect(ok).toBe(false)
 })
 
-test("cloud-init reads the user-provided config file into a user-data payload", () => {
+test("cloud-init resolves the user-provided config file into a user-data payload", () => {
   const dir = mkdtempSync(join(tmpdir(), "gnd-ci-"))
   const file = join(dir, "cloud.yml")
   writeFileSync(file, "#cloud-config\npackages:\n  - docker.io\n  - fail2ban\n")
@@ -288,8 +265,7 @@ test("cloud-init reads the user-provided config file into a user-data payload", 
       userData: file,
     })
     expect(payload.key).toBe("user-data")
-    expect(payload.value).toContain("#cloud-config")
-    expect(payload.value).toContain("fail2ban")
+    expect(payload.value).toBe(file)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

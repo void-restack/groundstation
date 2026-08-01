@@ -1,13 +1,11 @@
 import type { Instance } from "../domain"
 import type { Provider } from "../providers/types"
 
-export type ProvisionerKind = "none" | "cloud-init" | "shell" | "command" | "ansible"
+export type ProvisionerKind = "none" | "cloud-init" | "shell" | "command"
 
 export type ProvisionEvent =
-  | { type: "play"; name: string }
   | { type: "task"; name: string; role: string | null }
   | { type: "result"; state: "ok" | "changed" | "skipped" | "failed"; host: string; detail?: string }
-  | { type: "recap"; failures: number }
   | { type: "log"; line: string }
 
 export interface ProvisioningProfile {

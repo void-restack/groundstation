@@ -1,7 +1,6 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useState } from "react"
 import { detectTools, installCommand, installTool, type ToolStatus } from "../adapters/tools"
-import { useCapabilities } from "../state/config"
 import { pushToast } from "../state/toast"
 import { setTools } from "../state/ui"
 import { glyph, palette } from "../theme"
@@ -9,13 +8,12 @@ import { Dialog } from "./Dialog"
 import { Spinner } from "./Spinner"
 
 /**
- * The dependency doctor: shows whether gcloud / ansible / ssh are on PATH and,
+ * The dependency doctor: shows whether gcloud / ssh are on PATH and,
  * for a missing one, offers to run its package-manager install command in the
  * real terminal. Selection + enter installs; the exact command is shown first.
  */
 export function ToolsModal() {
   const renderer = useRenderer()
-  const caps = useCapabilities()
   const [statuses, setStatuses] = useState<ToolStatus[]>(() => detectTools())
   const [index, setIndex] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -87,20 +85,6 @@ export function ToolsModal() {
         ) : (
           <text fg={palette.caution}>no auto-installer — {current.spec.docs}</text>
         )}
-        {/* the ansible *binary* being present is separate from having a playbook
-            dir configured; spell that out so "ansible ✓" doesn't look like a lie
-            next to "sweep unavailable" */}
-        {current.spec.id === "ansible" && current.path ? (
-          caps.canProvision ? (
-            <text fg={palette.nominal} wrapMode="word">
-              provisioning + sweep ready {glyph.sep} playbook dir configured
-            </text>
-          ) : (
-            <text fg={palette.caution} wrapMode="word">
-              binary ✓ — Launch/Update also need a playbook dir (settings [ , ] → ANSIBLE)
-            </text>
-          )
-        ) : null}
       </box>
     </Dialog>
   )

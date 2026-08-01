@@ -1,6 +1,7 @@
 import { useKeyboard } from "@opentui/react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { listZones } from "../adapters/gcloud"
+import { config } from "../config"
 import { zoneLocation } from "../lib/geo"
 import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
@@ -8,14 +9,14 @@ import { SearchModal, type SearchItem } from "../components/SearchModal"
 import { Spinner } from "../components/Spinner"
 import type { LaunchStep } from "../domain"
 import { duration } from "../lib/format"
+import type { ProvisionerKind } from "../provisioners/types"
 import { useClock } from "../state/clock"
-import { useCapabilities } from "../state/config"
 import { beginLaunch, launchPhase, resetLaunch, useLaunch, type LaunchSpec } from "../state/launch"
 import { setScreen } from "../state/ui"
 import { glyph, palette } from "../theme"
 
 type Stage = "form" | "preflight" | "ignition"
-type Picker = "zone" | "machine" | "image"
+type Picker = "zone" | "machine" | "image" | "provision"
 type Image = { label: string; family: string; project: string }
 
 const FALLBACK_ZONES = [
@@ -31,8 +32,10 @@ const IMAGES: Image[] = [
   { label: "ubuntu-24.04-lts", family: "ubuntu-2404-lts", project: "ubuntu-os-cloud" },
 ]
 
-// how many fields the form arrow-navigates: NAME, ZONE, MACHINE, IMAGE, CONTINUE
-const FIELD_COUNT = 5
+// how many fields the form arrow-navigates: NAME, ZONE, MACHINE, IMAGE, PROVISION, CONTINUE
+const FIELD_COUNT = 6
+
+const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1)
 
 function stepGlyph(step: LaunchStep, frame: number): { icon: string; color: string } {
   switch (step.state) {
@@ -111,7 +114,6 @@ function Ignition({ spec }: { spec: LaunchSpec }) {
 }
 
 export function Launch() {
-  const { canProvision } = useCapabilities()
   const [stage, setStage] = useState<Stage>("form")
   const [focus, setFocus] = useState(0)
   const [picker, setPicker] = useState<Picker | null>(null)
@@ -119,9 +121,18 @@ export function Launch() {
   const [zone, setZone] = useState(FALLBACK_ZONES[0]!)
   const [machine, setMachine] = useState(MACHINES[0]!)
   const [image, setImage] = useState<Image>(IMAGES[0]!)
+  const [provisioner, setProvisioner] = useState<ProvisionerKind>("none")
 
   const [zones, setZones] = useState<string[]>(FALLBACK_ZONES)
   const [zonesLoading, setZonesLoading] = useState(true)
+
+  const provisionItems = useMemo<SearchItem<ProvisionerKind>[]>(() => {
+    const items: SearchItem<ProvisionerKind>[] = [{ value: "none", label: "none — bare box" }]
+    if (config.cloudInitFile) items.push({ value: "cloud-init", label: "cloud-init", hint: baseName(config.cloudInitFile) })
+    if (config.shellScript) items.push({ value: "shell", label: "shell script", hint: baseName(config.shellScript) })
+    return items
+  }, [])
+  const provisionLabel = provisionItems.find((i) => i.value === provisioner)?.label ?? provisioner
 
   useEffect(() => {
     let alive = true
@@ -144,6 +155,7 @@ export function Launch() {
     machineType: machine,
     imageFamily: image.family,
     imageProject: image.project,
+    provisioner,
   })
 
   const back = () => {
@@ -159,7 +171,8 @@ export function Launch() {
     if (focus === 1) setPicker("zone")
     else if (focus === 2) setPicker("machine")
     else if (focus === 3) setPicker("image")
-    else proceed() // NAME (0) or CONTINUE (4)
+    else if (focus === 4) setPicker("provision")
+    else proceed() // NAME (0) or CONTINUE (5)
   }
 
   useKeyboard((key) => {
@@ -201,17 +214,20 @@ export function Launch() {
           <PickerField label="ZONE" value={zone} focused={focus === 1} busy={zonesLoading} />
           <PickerField label="MACHINE" value={machine} focused={focus === 2} />
           <PickerField label="IMAGE" value={image.label} focused={focus === 3} />
+          <PickerField label="PROVISION" value={provisionLabel} focused={focus === 4} />
 
           <box flexDirection="row" gap={1} marginTop={1}>
-            <text fg={focus === 4 ? palette.nominal : palette.static}>
-              {focus === 4 ? glyph.arrowRight : " "} REVIEW & LAUNCH
+            <text fg={focus === 5 ? palette.nominal : palette.static}>
+              {focus === 5 ? glyph.arrowRight : " "} REVIEW & LAUNCH
             </text>
             {!name.trim() ? <text fg={palette.hairline}>{glyph.sep} name required</text> : null}
           </box>
 
-          <text fg={canProvision ? palette.downlink : palette.caution} marginTop={1}>
-            provisioning {glyph.arrowRight} {canProvision ? "ansible playbook" : "none — bare box (no ansible dir)"}
-          </text>
+          {provisionItems.length === 1 ? (
+            <text fg={palette.static} marginTop={1}>
+              set a cloud-init file or shell script in settings [ , ] to provision on launch
+            </text>
+          ) : null}
           <text fg={palette.static}>
             ↑↓/tab move {glyph.sep} enter {glyph.search} search / continue {glyph.sep} esc abort
           </text>
@@ -231,7 +247,7 @@ export function Launch() {
           <text fg={palette.static}>zone {glyph.arrowRight} <span fg={palette.starlight}>{spec.zone}</span></text>
           <text fg={palette.static}>machine {glyph.arrowRight} <span fg={palette.starlight}>{spec.machineType}</span></text>
           <text fg={palette.static}>image {glyph.arrowRight} <span fg={palette.starlight}>{spec.imageFamily}</span> ({spec.imageProject})</text>
-          <text fg={palette.static}>provision {glyph.arrowRight} <span fg={canProvision ? palette.downlink : palette.caution}>{canProvision ? "ansible" : "none (bare box)"}</span></text>
+          <text fg={palette.static}>provision {glyph.arrowRight} <span fg={palette.starlight}>{provisionLabel}</span></text>
           <text fg={palette.beacon} marginTop={1}>[Enter] IGNITION {glyph.sep} [esc] revise</text>
         </box>
       )}
@@ -260,8 +276,15 @@ export function Launch() {
           onPick={setImage}
           onClose={() => setPicker(null)}
         />
+      ) : picker === "provision" ? (
+        <SearchModal<ProvisionerKind>
+          title="SELECT PROVISIONING"
+          placeholder="none · cloud-init · shell…"
+          items={provisionItems}
+          onPick={setProvisioner}
+          onClose={() => setPicker(null)}
+        />
       ) : null}
     </box>
   )
 }
-

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs"
+import { existsSync } from "fs"
 import { expandHome } from "../config"
 import type { Provisioner, ProvisioningProfile } from "./types"
 
@@ -12,6 +12,8 @@ export const cloudInit: Provisioner = {
     if (!path || !existsSync(path)) {
       throw new Error(`cloud-init user-data file not found: ${profile.userData ?? "(unset)"}`)
     }
-    return { key: "user-data", value: readFileSync(path, "utf8") }
+    // the resolved path — providers inject it verbatim (GCP --metadata-from-file,
+    // AWS --user-data file://…, Azure --custom-data).
+    return { key: "user-data", value: path }
   },
 }

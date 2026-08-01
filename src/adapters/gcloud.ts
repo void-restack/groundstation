@@ -81,8 +81,9 @@ export async function createInstance(opts: {
   machineType: string
   imageFamily: string
   imageProject: string
+  userDataFile?: string
 }): Promise<void> {
-  const { stderr, code } = await exec([
+  const args = [
     "gcloud",
     "compute",
     "instances",
@@ -92,6 +93,8 @@ export async function createInstance(opts: {
     `--machine-type=${opts.machineType}`,
     `--image-family=${opts.imageFamily}`,
     `--image-project=${opts.imageProject}`,
-  ])
+  ]
+  if (opts.userDataFile) args.push("--metadata-from-file", `user-data=${opts.userDataFile}`)
+  const { stderr, code } = await exec(args)
   if (code !== 0) throw new Error(stderr.trim() || `instance create failed (${code})`)
 }

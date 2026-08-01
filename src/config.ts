@@ -10,9 +10,8 @@ import { join } from "path"
  */
 export interface PersistedConfig {
   schemaVersion: number
-  ansibleDir: string | null
-  provisionPlaybook: string
-  bootstrapUser: string | null
+  cloudInitFile: string | null
+  shellScript: string | null
   deployUser: string | null
   sshKey: string | null
   authorizedKeys: string | null
@@ -22,9 +21,8 @@ export interface PersistedConfig {
 
 /** The resolved config the app actually reads (env > file > auto-default). */
 export interface Config {
-  ansibleDir: string | null
-  provisionPlaybook: string
-  bootstrapUser: string
+  cloudInitFile: string | null
+  shellScript: string | null
   deployUser: string
   sshKey: string | null
   authorizedKeys: string
@@ -34,17 +32,14 @@ export interface Config {
 
 /** What the current environment actually supports, derived from the config. */
 export interface Capabilities {
-  /** ansible dir + provision playbook present → the Launch flow can run */
-  canProvision: boolean
   /** a non-empty authorized_keys file exists → `serve` can accept uplinks */
   canServe: boolean
 }
 
 const DEFAULT_PERSISTED: PersistedConfig = {
   schemaVersion: 1,
-  ansibleDir: null,
-  provisionPlaybook: "playbooks/provision-server.yml",
-  bootstrapUser: null,
+  cloudInitFile: null,
+  shellScript: null,
   deployUser: null,
   sshKey: null,
   authorizedKeys: null,
@@ -92,9 +87,8 @@ export function resolveConfig(p: PersistedConfig): Config {
   const home = homedir()
   const user = osUser()
   return {
-    ansibleDir: expandHome(process.env.GND_ANSIBLE_DIR ?? p.ansibleDir ?? null),
-    provisionPlaybook: process.env.GND_PROVISION_PLAYBOOK ?? p.provisionPlaybook,
-    bootstrapUser: process.env.GND_BOOTSTRAP_USER ?? p.bootstrapUser ?? user,
+    cloudInitFile: expandHome(process.env.GND_CLOUD_INIT ?? p.cloudInitFile ?? null),
+    shellScript: expandHome(process.env.GND_SHELL_SCRIPT ?? p.shellScript ?? null),
     deployUser: process.env.GND_DEPLOY_USER ?? p.deployUser ?? user,
     sshKey: expandHome(process.env.GND_SSH_KEY ?? p.sshKey ?? null),
     authorizedKeys: expandHome(
@@ -106,18 +100,13 @@ export function resolveConfig(p: PersistedConfig): Config {
 }
 
 export function computeCapabilities(c: Config): Capabilities {
-  const dirOk = !!c.ansibleDir && existsSync(c.ansibleDir)
-  const has = (rel: string) => dirOk && existsSync(join(c.ansibleDir!, rel))
   let canServe = false
   try {
     canServe = existsSync(c.authorizedKeys) && statSync(c.authorizedKeys).size > 0
   } catch {
     canServe = false
   }
-  return {
-    canProvision: has(c.provisionPlaybook),
-    canServe,
-  }
+  return { canServe }
 }
 
 // --- live singletons -------------------------------------------------------

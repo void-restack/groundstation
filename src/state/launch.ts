@@ -1,7 +1,7 @@
 import { getProvider } from "../providers/registry"
-import { listTasks, runProvision } from "../adapters/ansible"
-import type { ProvisionEvent } from "../provisioners/types"
-import { capabilities } from "../config"
+import { getProvisioner } from "../provisioners/registry"
+import type { ProvisionEvent, ProvisionerKind, ProvisioningProfile } from "../provisioners/types"
+import { config } from "../config"
 import { cues } from "../audio/cues"
 import type { LaunchPhase, LaunchStep } from "../domain"
 import { createStore, useStore } from "../lib/store"
@@ -13,6 +13,7 @@ export interface LaunchSpec {
   machineType: string
   imageFamily: string
   imageProject: string
+  provisioner: ProvisionerKind
 }
 
 interface LaunchState {
@@ -78,6 +79,15 @@ function onEvent(e: ProvisionEvent) {
   }
 }
 
+function profileFor(kind: ProvisionerKind): ProvisioningProfile {
+  return {
+    name: kind,
+    kind,
+    userData: config.cloudInitFile ?? undefined,
+    script: config.shellScript ?? undefined,
+  }
+}
+
 async function settle(name: string, timeoutMs = 120000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -95,14 +105,23 @@ export async function beginLaunch(spec: LaunchSpec) {
   launch.set({ ...initial, phase: "running", target: spec.name })
   logEvent({ server: spec.name, level: "info", message: `launch sequence: ${spec.name}` })
 
+  const provisioner = getProvisioner(spec.provisioner)
+  const profile = profileFor(spec.provisioner)
+
   try {
     pushStep({ name: "provision vessel", role: "gcloud", state: "running", durationMs: null, detail: null })
+    const extra: Record<string, string> = {}
+    if (provisioner.injectsAtCreate && provisioner.buildCreatePayload) {
+      const { key, value } = provisioner.buildCreatePayload(profile)
+      extra[key] = value
+    }
     await getProvider().create({
       name: spec.name,
       region: spec.zone,
       zone: spec.zone,
       size: spec.machineType,
       image: `${spec.imageFamily}|${spec.imageProject}`,
+      extra,
     })
     resolveLast("changed")
 
@@ -111,24 +130,29 @@ export async function beginLaunch(spec: LaunchSpec) {
     resolveLast(up ? "ok" : "failed")
     if (!up) throw new Error("vessel did not reach RUNNING with an external IP")
 
-    if (!capabilities.canProvision) {
+    if (!provisioner.run) {
+      // none, or cloud-init (already injected at create) → the box is the deliverable
       launch.set((s) => ({ ...s, phase: "succeeded" }))
       cues.success()
-      logEvent({ server: spec.name, level: "nominal", message: `${spec.name} in orbit (bare)` })
+      logEvent({ server: spec.name, level: "nominal", message: `${spec.name} in orbit` })
       return
     }
 
-    const tasks = await listTasks(spec.name).catch(() => [])
+    const inst = fleetSnapshot().find((s) => s.name === spec.name)
+    if (!inst) throw new Error("vessel vanished before provisioning")
+    const ctx = { instance: inst, profile, provider: getProvider() }
+
+    const tasks = provisioner.plan ? await provisioner.plan(ctx).catch(() => []) : []
     launch.set((s) => ({ ...s, estTotal: tasks.length + 2 }))
 
-    const ok = await runProvision(spec.name, onEvent)
+    const ok = await provisioner.run(ctx, onEvent)
     launch.set((s) => ({ ...s, phase: ok ? "succeeded" : "failed" }))
     if (ok) cues.success()
     else cues.fail()
     logEvent({
       server: spec.name,
       level: ok ? "nominal" : "flare",
-      message: ok ? `${spec.name} in orbit` : `${spec.name} launch failed`,
+      message: ok ? `${spec.name} in orbit` : `${spec.name} provisioning failed`,
     })
   } catch (err) {
     resolveLast("failed", err instanceof Error ? err.message : String(err))
