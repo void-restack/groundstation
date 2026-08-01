@@ -1,5 +1,6 @@
 import { config } from "../../config"
 import type { Instance, InstanceState, Server, ServerStatus } from "../../domain"
+import { exec } from "../../adapters/exec"
 import { createInstance, currentProject, fetchFleet, listZones } from "../../adapters/gcloud"
 import { regionOf } from "../../lib/format"
 import type {
@@ -75,6 +76,20 @@ function unpackImage(image: string, extra?: Record<string, string>): { family: s
   return { family: fam, project }
 }
 
+export type LifecycleVerb = "start" | "stop" | "reset" | "suspend" | "resume" | "delete"
+
+export function lifecycleArgs(verb: LifecycleVerb, inst: Instance): string[] {
+  const args = ["gcloud", "compute", "instances", verb, inst.name]
+  if (inst.zone) args.push(`--zone=${inst.zone}`)
+  args.push("--quiet")
+  return args
+}
+
+async function runLifecycle(verb: LifecycleVerb, inst: Instance): Promise<void> {
+  const { stderr, code } = await exec(lifecycleArgs(verb, inst))
+  if (code !== 0) throw new Error(stderr.trim() || `${verb} ${inst.name} failed (${code})`)
+}
+
 export const gcp: Provider = {
   id: "gcp",
   label: "Google Cloud",
@@ -115,6 +130,13 @@ export const gcp: Provider = {
     })
     return { id: spec.name, name: spec.name }
   },
+
+  start: (inst) => runLifecycle("start", inst),
+  stop: (inst) => runLifecycle("stop", inst),
+  reset: (inst) => runLifecycle("reset", inst),
+  suspend: (inst) => runLifecycle("suspend", inst),
+  resume: (inst) => runLifecycle("resume", inst),
+  delete: (inst) => runLifecycle("delete", inst),
 
   sshTarget(inst: Instance): SshTarget | null {
     if (!inst.externalIp) return null

@@ -6,7 +6,7 @@ import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
 import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/providers/registry"
-import { serverToInstance } from "../src/providers/gcp"
+import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
 import type { Server } from "../src/domain"
 
 const basePersisted: PersistedConfig = {
@@ -223,6 +223,19 @@ test("serverToInstance normalizes a GCP Server into an Instance", () => {
   expect(inst.zone).toBe("us-central1-a")
   expect(inst.region).toBe("us-central1")
   expect(serverToInstance(fakeServer({ status: "TERMINATED" }), "p").state).toBe("terminated")
+})
+
+test("lifecycleArgs builds a zoned, --quiet gcloud command (no TTY prompt)", () => {
+  const inst = serverToInstance(fakeServer(), "p")
+  expect(lifecycleArgs("stop", inst)).toEqual([
+    "gcloud", "compute", "instances", "stop", "vessel-1", "--zone=us-central1-a", "--quiet",
+  ])
+  // --quiet is the correctness catch: delete would otherwise hang on a stdin prompt
+  expect(lifecycleArgs("delete", inst)).toContain("--quiet")
+  // a zoneless instance omits the flag rather than sending --zone=null
+  const zoneless = serverToInstance(fakeServer(), "p")
+  zoneless.zone = null
+  expect(lifecycleArgs("start", zoneless).some((a) => a.startsWith("--zone"))).toBe(false)
 })
 
 test("GCP sshTarget resolves a reachable vessel and rejects one without an IP", () => {

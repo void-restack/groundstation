@@ -54,6 +54,12 @@ export interface Provider {
   describe(id: string): Promise<Instance>
 
   create(spec: CreateSpec): Promise<{ id: string; name: string }>
+  start(inst: Instance): Promise<void>
+  stop(inst: Instance): Promise<void>
+  reset(inst: Instance): Promise<void>
+  suspend(inst: Instance): Promise<void>
+  resume(inst: Instance): Promise<void>
+  delete(inst: Instance): Promise<void>
   sshTarget(inst: Instance): SshTarget | null
 
   createFields(): CreateField[]
