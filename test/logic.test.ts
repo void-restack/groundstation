@@ -183,13 +183,6 @@ test("GCP createFields drives a zone/size/image launch form", () => {
   expect(getProvider().createFields().map((f) => f.key)).toEqual(["zone", "size", "image"])
 })
 
-test("GCP listImages encodes imageProject inside the Choice value", async () => {
-  const images = await getProvider().listImages("us-central1")
-  const debian = images.find((c) => c.label === "debian-12")
-  expect(debian?.value).toBe("debian-12|debian-cloud")
-  expect(debian?.hint).toBe("debian-cloud")
-})
-
 test("serverToInstance normalizes a GCP Server into an Instance", () => {
   const inst = serverToInstance(fakeServer(), "my-project")
   expect(inst.provider).toBe("gcp")

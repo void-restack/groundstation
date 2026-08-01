@@ -141,7 +141,7 @@ export function Launch() {
   const [zone, setZone] = useState(FALLBACK_ZONES[0]!)
   const [machine, setMachine] = useState(MACHINES[0]!)
   const [custom, setCustom] = useState("")
-  const [image, setImage] = useState<Image>(IMAGES[0]!)
+  const [image, setImage] = useState(`${IMAGES[0]!.family}|${IMAGES[0]!.project}`)
   const [disk, setDisk] = useState("")
   const [diskType, setDiskType] = useState("")
   const [firewall, setFirewall] = useState<Firewall>({ http: false, https: false })
@@ -150,6 +150,11 @@ export function Launch() {
 
   const [diskTypeItems, setDiskTypeItems] = useState<SearchItem<string>[]>([{ value: "", label: "default (image default)" }])
   const [diskTypesLoading, setDiskTypesLoading] = useState(true)
+  const [imageItems, setImageItems] = useState<SearchItem<string>[]>(
+    IMAGES.map((im) => ({ value: `${im.family}|${im.project}`, label: im.label, hint: im.project })),
+  )
+  const [imagesLoading, setImagesLoading] = useState(true)
+  const imageLabel = imageItems.find((i) => i.value === image)?.label ?? image.split("|")[0] ?? image
 
   const firewallLabel =
     FIREWALLS.find((f) => f.value.http === firewall.http && f.value.https === firewall.https)?.label ?? "none"
@@ -239,15 +244,32 @@ export function Launch() {
     }
   }, [zone])
 
+  useEffect(() => {
+    let alive = true
+    getProvider()
+      .listImages("")
+      .then((imgs) => {
+        if (alive && imgs.length) setImageItems(imgs)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setImagesLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   const cx = parseCustom(custom)
+  const [imgFamily = "", imgProject = ""] = image.split("|")
   const buildSpec = (): LaunchSpec => ({
     name: name.trim(),
     zone,
     machineType: machine,
     customCpu: cx?.cpu,
     customMemoryGb: cx?.memGb,
-    imageFamily: image.family,
-    imageProject: image.project,
+    imageFamily: imgFamily,
+    imageProject: imgProject,
     diskSizeGb: Number(disk) || undefined,
     diskType: diskType || undefined,
     allowHttp: firewall.http,
@@ -317,7 +339,7 @@ export function Launch() {
           <Field label="CUSTOM" focused={focus === 3}>
             <input focused={focus === 3 && !picker} flexGrow={1} placeholder="optional — override cores,GB e.g. 4,8" onInput={setCustom} />
           </Field>
-          <PickerField label="IMAGE" value={image.label} focused={focus === 4} />
+          <PickerField label="IMAGE" value={imageLabel} focused={focus === 4} busy={imagesLoading} />
           <Field label="DISK GB" focused={focus === 5}>
             <input focused={focus === 5 && !picker} flexGrow={1} placeholder="default (image size)" onInput={setDisk} />
           </Field>
@@ -376,10 +398,10 @@ export function Launch() {
           onClose={() => setPicker(null)}
         />
       ) : picker === "image" ? (
-        <SearchModal<Image>
+        <SearchModal<string>
           title="SELECT IMAGE"
-          placeholder="filter images…"
-          items={IMAGES.map((im): SearchItem<Image> => ({ value: im, label: im.label, hint: im.project }))}
+          placeholder={imagesLoading ? "loading images…" : "filter — debian, ubuntu, cos, rocky…"}
+          items={imageItems}
           onPick={setImage}
           onClose={() => setPicker(null)}
         />

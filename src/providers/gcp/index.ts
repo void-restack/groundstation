@@ -16,13 +16,6 @@ import type {
 
 const gbOf = (mb: number) => `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB`
 
-const IMAGES: Array<{ family: string; project: string }> = [
-  { family: "debian-12", project: "debian-cloud" },
-  { family: "debian-11", project: "debian-cloud" },
-  { family: "ubuntu-2204-lts", project: "ubuntu-os-cloud" },
-  { family: "ubuntu-2404-lts", project: "ubuntu-os-cloud" },
-]
-
 const IMAGE_PROJECTS: Record<string, string> = {
   debian: "debian-cloud",
   ubuntu: "ubuntu-os-cloud",
@@ -227,6 +220,20 @@ export const gcp: Provider = {
   },
 
   async listImages(): Promise<Choice[]> {
-    return IMAGES.map((im) => ({ value: `${im.family}|${im.project}`, label: im.family, hint: im.project }))
+    // one family = one launchable image (--image-family resolves to the latest);
+    // dedupe by family, read the project out of the selfLink.
+    const images = await execJSON<Array<{ family?: string; selfLink?: string }>>([
+      "gcloud", "compute", "images", "list", "--format=json",
+    ]).catch(() => [])
+    const seen = new Set<string>()
+    const out: Choice[] = []
+    for (const img of images) {
+      if (!img.family || seen.has(img.family)) continue
+      seen.add(img.family)
+      const project = /\/projects\/([^/]+)\//.exec(img.selfLink ?? "")?.[1] ?? ""
+      out.push({ value: `${img.family}|${project}`, label: img.family, hint: project })
+    }
+    out.sort((a, b) => a.label.localeCompare(b.label))
+    return out
   },
 }
