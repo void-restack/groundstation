@@ -38,7 +38,7 @@ const SearchInput = memo(function SearchInput({
   return (
     <box flexDirection="row" gap={1}>
       <text fg={palette.beacon}>{glyph.arrowRight}</text>
-      <input ref={inputRef} placeholder={placeholder} onInput={onInput} />
+      <input ref={inputRef} flexGrow={1} placeholder={placeholder} onInput={onInput} />
     </box>
   )
 })
@@ -63,19 +63,11 @@ export function SearchModal<T>({
 }) {
   const [query, setQuery] = useState("")
   const [index, setIndex] = useState(0)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  // Debounce the filter: typing must NOT re-render the modal on every keystroke,
-  // or the concurrent re-render disrupts the focused input and drops characters.
   const onInput = useCallback((v: string) => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
-      setQuery(v)
-      setIndex(0)
-    }, 90)
+    setQuery(v)
+    setIndex(0)
   }, [])
-
-  useEffect(() => () => clearTimeout(timer.current), [])
 
   const filtered = useMemo(() => {
     const q = query.trim()

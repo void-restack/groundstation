@@ -28,7 +28,7 @@ const PaletteInput = memo(function PaletteInput({ onInput }: { onInput: (v: stri
   return (
     <box flexDirection="row" gap={1}>
       <text fg={palette.beacon}>{glyph.arrowRight}</text>
-      <input ref={inputRef} placeholder="type a command…" onInput={onInput} />
+      <input ref={inputRef} flexGrow={1} placeholder="type a command…" onInput={onInput} />
     </box>
   )
 })
@@ -39,18 +39,10 @@ export function CommandPalette() {
   const { instances } = useFleet()
   const { selected } = useUI()
   const renderer = useRenderer()
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  // Debounced so typing never re-renders the palette per keystroke (see SearchModal).
   const onInput = useCallback((v: string) => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
-      setQuery(v)
-      setIndex(0)
-    }, 90)
+    setQuery(v)
+    setIndex(0)
   }, [])
-
-  useEffect(() => () => clearTimeout(timer.current), [])
 
   const current = instances.find((s) => s.name === selected) ?? null
 
