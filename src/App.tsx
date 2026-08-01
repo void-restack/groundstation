@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { initAudio } from "./audio/cues"
 import { CommandPalette } from "./components/CommandPalette"
+import { ToastHost } from "./components/ToastHost"
 import { Board } from "./screens/Board"
 import { Launch } from "./screens/Launch"
 import { Orbit } from "./screens/Orbit"
@@ -23,6 +24,7 @@ export function App() {
     return (
       <box width="100%" height="100%">
         <Setup />
+        <ToastHost />
       </box>
     )
   }
@@ -39,6 +41,7 @@ export function App() {
         <Board />
       )}
       {paletteOpen ? <CommandPalette /> : null}
+      <ToastHost />
     </box>
   )
 }

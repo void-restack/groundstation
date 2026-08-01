@@ -26,7 +26,7 @@ const HINTS = [
 ]
 
 export function Board() {
-  const { servers, loading, error } = useFleet()
+  const { servers, loading } = useFleet()
   const { selected, paletteOpen } = useUI()
   const events = useEvents()
   const renderer = useRenderer()
@@ -80,9 +80,6 @@ export function Board() {
     <box flexDirection="column" width="100%" height="100%" backgroundColor={palette.void}>
       <TopBar fleetSize={servers.length} />
       <Overview servers={servers} />
-      {error ? (
-        <text fg={palette.flare}> {error}</text>
-      ) : null}
       <box flexDirection="row" flexGrow={1}>
         <FleetRail servers={servers} selected={selected} />
         <Glass server={current} />

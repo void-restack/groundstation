@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { parseLine } from "../src/adapters/ansible"
 import { computeCapabilities, resolveConfig, type PersistedConfig } from "../src/config"
+import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
 
@@ -92,6 +93,23 @@ test("computeCapabilities: no ansible dir disables provisioning + sweep", () => 
     expect(caps.canProvision).toBe(false)
     expect(caps.canUpdate).toBe(false)
   })
+})
+
+test("summarizeError collapses a multi-line gcloud auth dump to an actionable hint", () => {
+  const raw =
+    "WARNING: Python 3.9 will be deprecated.\n" +
+    "ERROR: (gcloud.compute.instances.list) There was a problem refreshing your current auth tokens: Reauthentication failed.\n" +
+    "Please run:\n  $ gcloud auth login"
+  const { title, message } = summarizeError(raw)
+  expect(title).toBe("gcloud auth expired")
+  expect(message).toContain("gcloud auth login")
+  expect(message.split("\n").length).toBe(1)
+})
+
+test("summarizeError falls back to the first ERROR line, trimmed", () => {
+  const { title, message } = summarizeError("noise\nERROR: (gcloud.x) quota exceeded for region\nmore noise")
+  expect(title).toBe("fleet error")
+  expect(message).toBe("quota exceeded for region")
 })
 
 test("parseLine recognises ansible output", () => {

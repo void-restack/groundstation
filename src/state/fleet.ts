@@ -2,7 +2,9 @@ import { config } from "../config"
 import type { FleetEvent, HardenedState, Server, ServerStatus } from "../domain"
 import { currentProject, fetchFleet } from "../adapters/gcloud"
 import { probeHardened } from "../adapters/ssh"
+import { summarizeError } from "../lib/errors"
 import { createStore, useStore } from "../lib/store"
+import { pushToast } from "./toast"
 
 interface FleetState {
   servers: Server[]
@@ -84,11 +86,15 @@ export async function refreshFleet() {
     fleet.set({ servers, loading: false, error: null, lastSync: new Date() })
     void probeFleet(servers)
   } catch (err) {
-    fleet.set((prev) => ({
-      ...prev,
-      loading: false,
-      error: err instanceof Error ? err.message : String(err),
-    }))
+    const raw = err instanceof Error ? err.message : String(err)
+    const changed = raw !== fleet.get().error
+    fleet.set((prev) => ({ ...prev, loading: false, error: raw }))
+    // toast only when the error changes, so a persistently-failing poll
+    // (e.g. expired auth every 15s) doesn't spam identical cards
+    if (changed) {
+      const { title, message } = summarizeError(raw)
+      pushToast({ title, message, variant: "error" })
+    }
   }
 }
 
