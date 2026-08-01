@@ -85,8 +85,3 @@ export const glyph = {
   arrowRight: "→",
   bullet: "•",
 } as const
-
-export const border = {
-  resting: "rounded",
-  focused: "double",
-} as const

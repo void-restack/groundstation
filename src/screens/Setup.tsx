@@ -54,7 +54,7 @@ export function Setup() {
       <box
         marginTop={1}
         border
-        borderStyle="double"
+        borderStyle="rounded"
         borderColor={palette.downlink}
         title=" FLIGHT CONFIG "
         padding={1}

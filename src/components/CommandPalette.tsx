@@ -1,3 +1,4 @@
+import { TextAttributes } from "@opentui/core"
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { uplink } from "../adapters/ssh"
@@ -98,17 +99,19 @@ export function CommandPalette() {
       left="15%"
       top={4}
       width="70%"
-      border
-      borderStyle="double"
-      borderColor={palette.downlink}
       backgroundColor={palette.panel}
-      title=" COMMAND "
-      titleAlignment="center"
       flexDirection="column"
-      padding={1}
+      paddingTop={1}
+      paddingBottom={1}
+      paddingLeft={2}
+      paddingRight={2}
       gap={1}
       zIndex={100}
     >
+      <box flexDirection="row" justifyContent="space-between">
+        <text fg={palette.beacon} attributes={TextAttributes.BOLD}>COMMAND</text>
+        <text fg={palette.static}>esc</text>
+      </box>
       <PaletteInput onInput={onInput} />
       <box flexDirection="column">
         {filtered.length === 0 ? (

@@ -24,7 +24,7 @@ export function Settings() {
       <box
         marginTop={1}
         border
-        borderStyle="double"
+        borderStyle="rounded"
         borderColor={palette.downlink}
         title=" MISSION CONFIG "
         padding={1}

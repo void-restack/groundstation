@@ -1,4 +1,4 @@
-import { RGBA } from "@opentui/core"
+import { RGBA, TextAttributes } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import type { ReactNode } from "react"
 import { palette } from "../theme"
@@ -7,8 +7,8 @@ import { palette } from "../theme"
 const SCRIM = RGBA.fromInts(0, 0, 0, 140)
 
 /**
- * A centered overlay panel: full-screen scrim + a bordered box, with an
- * optional footer row. Owns escape-to-close so callers don't have to. Content
+ * A centered, borderless overlay panel: full-screen scrim + a filled card with
+ * an interior title row (title left, esc right). Owns escape-to-close. Content
  * inside manages its own focus (e.g. a focused <input>).
  */
 export function Dialog({
@@ -42,16 +42,20 @@ export function Dialog({
     >
       <box
         width={width}
-        border
-        borderStyle="double"
-        borderColor={palette.downlink}
         backgroundColor={palette.panel}
-        title={` ${title} `}
-        titleAlignment="center"
         flexDirection="column"
-        padding={1}
+        paddingTop={1}
+        paddingBottom={1}
+        paddingLeft={2}
+        paddingRight={2}
         gap={1}
       >
+        <box flexDirection="row" justifyContent="space-between">
+          <text fg={palette.beacon} attributes={TextAttributes.BOLD}>
+            {title}
+          </text>
+          {onClose ? <text fg={palette.static}>esc</text> : null}
+        </box>
         {children}
         {footer ? (
           <box flexDirection="row" gap={1} marginTop={1}>

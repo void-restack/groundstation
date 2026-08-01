@@ -219,7 +219,7 @@ export function Launch() {
       ) : (
         <box
           border
-          borderStyle="double"
+          borderStyle="rounded"
           borderColor={palette.downlink}
           title=" PRE-FLIGHT "
           padding={1}
