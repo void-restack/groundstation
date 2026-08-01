@@ -4,20 +4,40 @@ import { CommandPalette } from "./components/CommandPalette"
 import { Board } from "./screens/Board"
 import { Launch } from "./screens/Launch"
 import { Orbit } from "./screens/Orbit"
+import { Settings } from "./screens/Settings"
+import { Setup } from "./screens/Setup"
+import { useConfig } from "./state/config"
 import { startFleetPolling } from "./state/fleet"
 import { useUI } from "./state/ui"
 
 export function App() {
   const { screen, paletteOpen } = useUI()
+  const { firstRun } = useConfig()
 
   useEffect(() => {
     startFleetPolling()
     initAudio()
   }, [])
 
+  if (firstRun) {
+    return (
+      <box width="100%" height="100%">
+        <Setup />
+      </box>
+    )
+  }
+
   return (
     <box width="100%" height="100%">
-      {screen === "launch" ? <Launch /> : screen === "orbit" ? <Orbit /> : <Board />}
+      {screen === "launch" ? (
+        <Launch />
+      ) : screen === "orbit" ? (
+        <Orbit />
+      ) : screen === "settings" ? (
+        <Settings />
+      ) : (
+        <Board />
+      )}
       {paletteOpen ? <CommandPalette /> : null}
     </box>
   )

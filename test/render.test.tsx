@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
+import { ConfigForm } from "../src/components/ConfigForm"
 import { FleetCard } from "../src/components/FleetCard"
 import { Glass } from "../src/components/Glass"
 import { LogView } from "../src/components/LogView"
@@ -58,6 +59,22 @@ test("SearchModal renders its title and the filterable items", async () => {
     const frame = setup.captureCharFrame()
     expect(frame).toContain("ZONE")
     expect(frame).toContain("us-central1-a")
+  } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("ConfigForm renders the mission-config fields", async () => {
+  const setup = await testRender(<ConfigForm onSave={() => {}} onCancel={() => {}} />, {
+    width: 70,
+    height: 18,
+  })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("ANSIBLE")
+    expect(frame).toContain("SSH KEY")
+    expect(frame).toContain("PORT")
   } finally {
     setup.renderer.destroy()
   }

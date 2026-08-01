@@ -51,6 +51,7 @@ export function CommandPalette() {
         },
       },
       { id: "orbit", title: "Orbit view", run: () => setScreen("orbit") },
+      { id: "settings", title: "Settings — mission config", run: () => setScreen("settings") },
       { id: "refresh", title: "Refresh fleet", run: () => void refreshFleet() },
       {
         id: "sound",

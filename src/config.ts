@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "fs"
 import { homedir, userInfo } from "os"
 import { join } from "path"
 
@@ -168,4 +168,25 @@ export function getPersisted(): PersistedConfig {
 
 export function isFirstRun(): boolean {
   return firstRun
+}
+
+/**
+ * Private SSH keys found under ~/.ssh — an entry that either has a matching
+ * `.pub` sibling or is a well-known key name. Used to offer a key picker in the
+ * setup screen instead of making the user type a path.
+ */
+export function detectSshKeys(): string[] {
+  const dir = join(homedir(), ".ssh")
+  let entries: string[]
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return []
+  }
+  const pubs = new Set(entries.filter((e) => e.endsWith(".pub")).map((e) => e.slice(0, -4)))
+  const known = new Set(["id_ed25519", "id_rsa", "id_ecdsa", "id_dsa"])
+  return entries
+    .filter((e) => !e.endsWith(".pub") && (pubs.has(e) || known.has(e)))
+    .map((e) => join(dir, e))
+    .sort()
 }

@@ -2,9 +2,11 @@ import { createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
 import { App } from "./App"
 import { config, loadConfig } from "./config"
+import { syncConfigStore } from "./state/config"
 import { palette } from "./theme"
 
 loadConfig()
+syncConfigStore()
 
 if (process.argv.slice(2).includes("serve")) {
   const { serve } = await import("./server")

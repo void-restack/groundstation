@@ -20,6 +20,7 @@ const HINTS = [
   { key: "U", label: "pdate all" },
   { key: "S", label: "sh" },
   { key: "O", label: "rbit" },
+  { key: ",", label: "settings" },
   { key: "/", label: "command" },
   { key: "Q", label: "uit" },
 ]
@@ -41,6 +42,7 @@ export function Board() {
     if (paletteOpen) return
     if (key.ctrl && key.name === "k") return setPalette(true)
     if (key.sequence === "/") return setPalette(true)
+    if (key.sequence === ",") return setScreen("settings")
     switch (key.name) {
       case "up":
       case "k":

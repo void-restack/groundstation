@@ -1,6 +1,6 @@
 import { createStore, useStore } from "../lib/store"
 
-export type Screen = "board" | "launch" | "orbit"
+export type Screen = "board" | "launch" | "orbit" | "settings"
 
 interface UIState {
   screen: Screen

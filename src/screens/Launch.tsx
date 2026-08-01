@@ -165,7 +165,7 @@ export function Launch() {
       {stage === "form" ? (
         <box flexDirection="column" gap={1} marginTop={1}>
           <Field label="NAME" focused={focus === 0}>
-            <input focused={focus === 0} placeholder="required" onInput={setName} />
+            <input focused={focus === 0} flexGrow={1} placeholder="required" onInput={setName} />
           </Field>
           <SelectField label="ZONE" value={ZONES[zoneIdx]!} focused={focus === 1} />
           <SelectField label="MACHINE" value={MACHINES[machineIdx]!} focused={focus === 2} />
