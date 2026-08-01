@@ -119,29 +119,38 @@ The UI is a thin React front-end over an adapter layer that shells out to the to
 
 ```
 src/
-├── adapters/    exec, gcloud, ansible, ssh — the shell-out layer (Bun.spawn)
-├── state/       stores (fleet, ui, launch, clock, ops) via useSyncExternalStore
-├── components/  presentational renderables (Panel, Meter, GlobeAscii, …)
-├── screens/     Board, Launch, Orbit
-├── lib/         pure helpers (format, color, gradient, geo, earth, wav)
+├── adapters/    exec, gcloud, ansible, ssh, tools — the shell-out layer (Bun.spawn)
+├── state/       stores (fleet, ui, launch, ops, config, toast, clock) via useSyncExternalStore
+├── components/  renderables + kit (Dialog, SearchModal, LogView, Spinner, ToastHost,
+│                ToolsModal, ConfigForm, Field, Panel, Meter, WorldMap, …)
+├── screens/     Board, Launch, Orbit, Setup, Settings
+├── lib/         pure helpers (format, color, gradient, geo, errors, worldmap, wav)
 ├── audio/       synthesized sound cues
+├── config.ts    persisted profile, env>file>auto resolution, capability detection
 ├── theme.ts     btop .theme loader → palette + meter gradient
 ├── server.tsx   SSH server entry
 └── index.tsx    entry point (local renderer or `serve`)
 ```
+
+GROUNDSTATION targets GCP + Ansible today; the roadmap below is the direction of travel.
 
 ## Development
 
 ```bash
 bun run typecheck
 bun test
+bun run compile        # → ./gnd (single self-contained binary)
 ```
+
+CI runs typecheck + tests on every push; tagging `vX.Y.Z` builds binaries for
+Linux/macOS/Windows and attaches them to a GitHub Release.
 
 ## Roadmap
 
-- Live metrics (Beszel / Cloud Monitoring) → real CPU/mem meters per vessel
-- Selectable inventories / multi-project support
-- Structured audit log of provisioning runs
+- **Multi-cloud** — a provider abstraction (GCP today; AWS/Azure next) over each vendor CLI, so one fleet view spans clouds
+- **In-TUI cloud ops** — a per-vessel action menu (start/stop/reset/delete/describe), project & auth switching, serial console — without leaving the console
+- **Pluggable provisioning** — bring your own (cloud-init / Ansible / shell); Ansible optional, never required
+- **Live metrics** — Beszel / Cloud Monitoring → real CPU/mem meters per vessel
 
 ## License
 

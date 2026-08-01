@@ -1,21 +1,42 @@
 import { createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
+import pkg from "../package.json"
 import { App } from "./App"
 import { config, loadConfig } from "./config"
 import { syncConfigStore } from "./state/config"
 import { palette } from "./theme"
 
-loadConfig()
-syncConfigStore()
+const args = process.argv.slice(2)
 
-if (process.argv.slice(2).includes("serve")) {
-  const { serve } = await import("./server")
-  await serve(config.port)
+if (args.includes("--version") || args.includes("-v")) {
+  console.log(`groundstation ${pkg.version}`)
+} else if (args.includes("--help") || args.includes("-h")) {
+  console.log(
+    [
+      "GROUNDSTATION — mission control for a cloud fleet",
+      "",
+      "Usage:",
+      "  gnd            launch the dashboard (needs a gcloud login)",
+      "  gnd serve      serve the dashboard over SSH",
+      "  gnd --version  print the version",
+      "  gnd --help     show this help",
+      "",
+      "Config: ~/.config/groundstation/config.json (or GND_* env vars).",
+    ].join("\n"),
+  )
 } else {
-  const renderer = await createCliRenderer({
-    exitOnCtrlC: true,
-    targetFps: 30,
-    backgroundColor: palette.void,
-  })
-  createRoot(renderer).render(<App />)
+  loadConfig()
+  syncConfigStore()
+
+  if (args.includes("serve")) {
+    const { serve } = await import("./server")
+    await serve(config.port)
+  } else {
+    const renderer = await createCliRenderer({
+      exitOnCtrlC: true,
+      targetFps: 30,
+      backgroundColor: palette.void,
+    })
+    createRoot(renderer).render(<App />)
+  }
 }

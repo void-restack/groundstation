@@ -8,6 +8,7 @@
     "jsxImportSource": "@opentui/react",
     "strict": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "noUncheckedIndexedAccess": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,

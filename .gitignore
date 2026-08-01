@@ -4,3 +4,4 @@ gnd-*
 *.log
 .DS_Store
 dist/
+docs/
