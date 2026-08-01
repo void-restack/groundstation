@@ -2,6 +2,7 @@ import { TextAttributes, type InputRenderable } from "@opentui/core"
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { uplink } from "../adapters/ssh"
+import { reauth } from "../adapters/auth"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
 import { setPalette, setProjectSwitch, setScreen, setTools, useUI } from "../state/ui"
@@ -57,6 +58,11 @@ export function CommandPalette() {
       },
       { id: "orbit", title: "Orbit view", run: () => setScreen("orbit") },
       { id: "project", title: "Switch project — change active GCP project", run: () => setProjectSwitch(true) },
+      {
+        id: "auth",
+        title: "Re-authenticate — gcloud auth login",
+        run: () => void reauth(renderer).then(() => refreshFleet()),
+      },
       { id: "settings", title: "Settings — mission config", run: () => setScreen("settings") },
       { id: "tools", title: "Dependencies — check & install tools", run: () => setTools(true) },
       { id: "refresh", title: "Refresh fleet", run: () => void refreshFleet() },

@@ -120,6 +120,10 @@ export const gcp: Provider = {
     if (code !== 0) throw new Error(stderr.trim() || `set project failed (${code})`)
   },
 
+  authCommand(): string[] {
+    return ["gcloud", "auth", "login"]
+  },
+
   async listInstances(): Promise<Instance[]> {
     const [servers, account] = await Promise.all([fetchFleet(), currentProject().catch(() => "")])
     return servers.map((s) => serverToInstance(s, account))

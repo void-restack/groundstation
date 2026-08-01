@@ -51,6 +51,7 @@ export interface Provider {
   account(): Promise<AccountContext>
   listAccounts(): Promise<Choice[]>
   setAccount(value: string): Promise<void>
+  authCommand(): string[]
 
   listInstances(): Promise<Instance[]>
   describe(id: string): Promise<Instance>
