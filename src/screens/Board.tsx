@@ -1,6 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useEffect } from "react"
-import { capabilities } from "../config"
 import { uplink } from "../adapters/ssh"
 import { toggleMute } from "../audio/cues"
 import { FleetRail } from "../components/FleetRail"
@@ -53,10 +52,8 @@ export function Board() {
       case "j":
         return moveSelection(names, 1)
       case "p":
-        if (!capabilities.canProvision) {
-          logEvent({ server: null, level: "caution", message: "provisioning needs an ansible playbook dir — settings [ , ] → ANSIBLE" })
-          return
-        }
+        // always open the provision screen; it shows a disabled banner with a
+        // jump to settings when there's no playbook dir yet
         return setScreen("launch")
       case "o":
         return setScreen("orbit")

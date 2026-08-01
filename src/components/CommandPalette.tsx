@@ -1,6 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useMemo, useState } from "react"
-import { capabilities } from "../config"
 import { uplink } from "../adapters/ssh"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
@@ -12,11 +11,7 @@ interface Command {
   id: string
   title: string
   run: () => void
-  disabled?: boolean
-  hint?: string
 }
-
-const NO_ANSIBLE = "needs an ansible playbook dir — settings [ , ]"
 
 export function CommandPalette() {
   const [query, setQuery] = useState("")
@@ -29,20 +24,8 @@ export function CommandPalette() {
 
   const commands = useMemo<Command[]>(
     () => [
-      {
-        id: "provision",
-        title: "Provision a new vessel",
-        run: () => setScreen("launch"),
-        disabled: !capabilities.canProvision,
-        hint: NO_ANSIBLE,
-      },
-      {
-        id: "update",
-        title: "Update all — constellation sweep",
-        run: () => void updateAll(),
-        disabled: !capabilities.canUpdate,
-        hint: NO_ANSIBLE,
-      },
+      { id: "provision", title: "Provision a new vessel", run: () => setScreen("launch") },
+      { id: "update", title: "Update all — constellation sweep", run: () => void updateAll() },
       {
         id: "ssh",
         title: current ? `Uplink → ${current.name}` : "Uplink (select a vessel first)",
@@ -83,11 +66,7 @@ export function CommandPalette() {
     if (key.name === "return") {
       const cmd = filtered[clamped]
       close()
-      if (cmd?.disabled) {
-        logEvent({ server: null, level: "caution", message: cmd.hint ?? "unavailable" })
-      } else {
-        cmd?.run()
-      }
+      cmd?.run()
     }
   })
 
@@ -121,10 +100,7 @@ export function CommandPalette() {
               <text fg={i === clamped ? palette.downlink : palette.static}>
                 {i === clamped ? glyph.arrowRight : " "}
               </text>
-              <text fg={c.disabled ? palette.static : i === clamped ? palette.starlight : palette.static}>
-                {c.title}
-              </text>
-              {c.disabled ? <text fg={palette.static}>{`— ${c.hint ?? "unavailable"}`}</text> : null}
+              <text fg={i === clamped ? palette.starlight : palette.static}>{c.title}</text>
             </box>
           ))
         )}

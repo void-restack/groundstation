@@ -1,13 +1,18 @@
 import { runUpdateAll } from "../adapters/ansible"
 import { capabilities } from "../config"
 import { logEvent, refreshFleet } from "./fleet"
+import { pushToast } from "./toast"
 
 let sweeping = false
 
 export async function updateAll() {
   if (sweeping) return
   if (!capabilities.canUpdate) {
-    logEvent({ server: null, level: "caution", message: "sweep needs an ansible playbook dir — settings [ , ] → ANSIBLE" })
+    pushToast({
+      title: "sweep unavailable",
+      message: "needs an ansible playbook dir — press , for settings",
+      variant: "warning",
+    })
     return
   }
   sweeping = true

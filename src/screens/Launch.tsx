@@ -182,10 +182,12 @@ export function Launch() {
   if (!canProvision) {
     return (
       <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.void}>
-        <text fg={palette.beacon}>LAUNCH SEQUENCE</text>
-        <text fg={palette.caution}>Provisioning is unavailable — no Ansible directory configured.</text>
-        <text fg={palette.static}>Set one in settings, then try again.</text>
-        <text fg={palette.beacon} marginTop={1}>[ , ] settings {glyph.sep} [esc] back</text>
+        <text fg={palette.beacon}>LAUNCH SEQUENCE {glyph.sep} STANDBY</text>
+        <text fg={palette.caution} marginTop={1}>Provisioning needs an Ansible playbook directory.</text>
+        <text fg={palette.static}>
+          Point GROUNDSTATION at a folder containing {glyph.arrowRight} playbooks/provision-server.yml
+        </text>
+        <text fg={palette.beacon} marginTop={1}>[ , ] set it in settings {glyph.sep} [esc] back to board</text>
         <LaunchExitKeys onBack={back} onSettings={() => setScreen("settings")} />
       </box>
     )
