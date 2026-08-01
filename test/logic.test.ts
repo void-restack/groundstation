@@ -10,6 +10,10 @@ import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
 import { zoneLocation } from "../src/lib/geo"
 import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
+import { getProvisioner, registeredProvisioners } from "../src/provisioners/registry"
+import { mkdtempSync, rmSync, writeFileSync } from "fs"
+import { tmpdir } from "os"
+import { join } from "path"
 import type { Server } from "../src/domain"
 
 const basePersisted: PersistedConfig = {
@@ -253,6 +257,38 @@ test("runOp reports success, captures thrown errors as failure", async () => {
     throw new Error("boom")
   })
   expect(bad).toBe(false)
+})
+
+test("provisioner registry: none is a no-op, cloud-init injects at create", () => {
+  expect(registeredProvisioners().map((p) => p.kind).sort()).toEqual(["cloud-init", "none"])
+  const none = getProvisioner("none")
+  expect(none.injectsAtCreate).toBe(false)
+  expect(none.buildCreatePayload).toBeUndefined()
+  expect(getProvisioner("cloud-init").injectsAtCreate).toBe(true)
+})
+
+test("cloud-init reads the user-provided config file into a user-data payload", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gnd-ci-"))
+  const file = join(dir, "cloud.yml")
+  writeFileSync(file, "#cloud-config\npackages:\n  - docker.io\n  - fail2ban\n")
+  try {
+    const payload = getProvisioner("cloud-init").buildCreatePayload!({
+      name: "docker-host",
+      kind: "cloud-init",
+      userData: file,
+    })
+    expect(payload.key).toBe("user-data")
+    expect(payload.value).toContain("#cloud-config")
+    expect(payload.value).toContain("fail2ban")
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("cloud-init rejects a missing user-data file with a clear error", () => {
+  expect(() =>
+    getProvisioner("cloud-init").buildCreatePayload!({ name: "x", kind: "cloud-init", userData: "/no/such/file.yml" }),
+  ).toThrow(/not found/)
 })
 
 test("zoneLocation maps a zone to its city so pickers are searchable by name", () => {

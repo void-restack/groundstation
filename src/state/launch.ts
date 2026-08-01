@@ -1,5 +1,6 @@
 import { getProvider } from "../providers/registry"
-import { listTasks, runProvision, type ProvisionEvent } from "../adapters/ansible"
+import { listTasks, runProvision } from "../adapters/ansible"
+import type { ProvisionEvent } from "../provisioners/types"
 import { capabilities } from "../config"
 import { cues } from "../audio/cues"
 import type { LaunchPhase, LaunchStep } from "../domain"

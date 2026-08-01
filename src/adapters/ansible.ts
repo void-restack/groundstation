@@ -1,12 +1,6 @@
 import { config } from "../config"
+import type { ProvisionEvent } from "../provisioners/types"
 import { exec, streamLines } from "./exec"
-
-export type ProvisionEvent =
-  | { type: "play"; name: string }
-  | { type: "task"; name: string; role: string | null }
-  | { type: "result"; state: "ok" | "changed" | "skipped" | "failed"; host: string; detail?: string }
-  | { type: "recap"; failures: number }
-  | { type: "log"; line: string }
 
 const ANSIBLE_ENV = { ANSIBLE_FORCE_COLOR: "0", ANSIBLE_NOCOLOR: "1", PY_COLORS: "0" }
 
