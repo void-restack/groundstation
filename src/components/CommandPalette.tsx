@@ -1,4 +1,4 @@
-import { TextAttributes } from "@opentui/core"
+import { TextAttributes, type InputRenderable } from "@opentui/core"
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { uplink } from "../adapters/ssh"
@@ -14,12 +14,21 @@ interface Command {
   run: () => void
 }
 
-/** Isolated behind memo so re-rendering the command list never reconciles the live input. */
+/** Memoized + imperatively focused after mount, so re-renders never disturb the input
+ *  and the first keystroke isn't dropped before focus settles (see SearchModal). */
 const PaletteInput = memo(function PaletteInput({ onInput }: { onInput: (v: string) => void }) {
+  const inputRef = useRef<InputRenderable | null>(null)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const el = inputRef.current
+      if (el && !el.isDestroyed) el.focus()
+    }, 1)
+    return () => clearTimeout(id)
+  }, [])
   return (
     <box flexDirection="row" gap={1}>
       <text fg={palette.beacon}>{glyph.arrowRight}</text>
-      <input focused placeholder="type a command…" onInput={onInput} />
+      <input ref={inputRef} placeholder="type a command…" onInput={onInput} />
     </box>
   )
 })

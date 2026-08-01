@@ -1,3 +1,4 @@
+import type { InputRenderable } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import fuzzysort from "fuzzysort"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -14,9 +15,10 @@ export interface SearchItem<T> {
 const VISIBLE = 8
 
 /**
- * The query input, isolated behind memo so re-rendering the result list (which
- * happens on every keystroke) never reconciles the live <input>. Without this,
- * fast typing drops characters because the input is torn down mid-keystroke.
+ * The query input. Isolated behind memo so re-rendering the list never
+ * reconciles the live <input>, and focused imperatively one tick after mount
+ * (as opencode does) — the declarative `focused` prop lands too early and the
+ * first keystroke is dropped before focus settles.
  */
 const SearchInput = memo(function SearchInput({
   placeholder,
@@ -25,10 +27,18 @@ const SearchInput = memo(function SearchInput({
   placeholder: string
   onInput: (v: string) => void
 }) {
+  const inputRef = useRef<InputRenderable | null>(null)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const el = inputRef.current
+      if (el && !el.isDestroyed) el.focus()
+    }, 1)
+    return () => clearTimeout(id)
+  }, [])
   return (
     <box flexDirection="row" gap={1}>
       <text fg={palette.beacon}>{glyph.arrowRight}</text>
-      <input focused placeholder={placeholder} onInput={onInput} />
+      <input ref={inputRef} placeholder={placeholder} onInput={onInput} />
     </box>
   )
 })
