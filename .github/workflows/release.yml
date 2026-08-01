@@ -21,7 +21,7 @@ jobs:
         with:
           bun-version: "1.3.14"
       - run: bun install --frozen-lockfile --ignore-scripts
-      - run: bun build --compile --minify ./src/index.tsx --outfile gnd-${{ matrix.target }}${{ matrix.ext }}
+      - run: bun build --compile --minify --external cpu-features ./src/index.tsx --outfile gnd-${{ matrix.target }}${{ matrix.ext }}
       - run: ./gnd-${{ matrix.target }}${{ matrix.ext }} --version
       - uses: actions/upload-artifact@v6
         with:
