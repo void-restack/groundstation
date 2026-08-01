@@ -3,7 +3,7 @@ import { existsSync } from "fs"
 import { homedir } from "os"
 import { join } from "path"
 import { useMemo, useState } from "react"
-import { config, detectSshKeys, getPersisted, type PersistedConfig } from "../config"
+import { config, detectSshKeys, expandHome, getPersisted, type PersistedConfig } from "../config"
 import { glyph, palette } from "../theme"
 import { Field, PickerField } from "./Field"
 import { SearchModal, type SearchItem } from "./SearchModal"
@@ -71,7 +71,7 @@ export function ConfigForm({
     if (key.name === "return") return focus === 1 ? setSshPickerOpen(true) : save()
   })
 
-  const dir = ansibleDir.trim()
+  const dir = expandHome(ansibleDir.trim())
   const ansibleState = !dir
     ? { text: "optional — enables Launch + Update", color: palette.static }
     : existsSync(join(dir, config.provisionPlaybook))

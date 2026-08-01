@@ -81,19 +81,31 @@ function num(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+/** Expand a leading ~ to the home directory — fs APIs don't do this themselves. */
+export function expandHome(p: string): string
+export function expandHome(p: null): null
+export function expandHome(p: string | null): string | null
+export function expandHome(p: string | null): string | null {
+  if (!p) return p
+  if (p === "~") return homedir()
+  if (p.startsWith("~/") || p.startsWith("~\\")) return join(homedir(), p.slice(2))
+  return p
+}
+
 /** Collapse a persisted profile + environment overrides into a runtime config. */
 export function resolveConfig(p: PersistedConfig): Config {
   const home = homedir()
   const user = osUser()
   return {
-    ansibleDir: process.env.GND_ANSIBLE_DIR ?? p.ansibleDir ?? null,
+    ansibleDir: expandHome(process.env.GND_ANSIBLE_DIR ?? p.ansibleDir ?? null),
     provisionPlaybook: process.env.GND_PROVISION_PLAYBOOK ?? p.provisionPlaybook,
     updatePlaybook: process.env.GND_UPDATE_PLAYBOOK ?? p.updatePlaybook,
     bootstrapUser: process.env.GND_BOOTSTRAP_USER ?? p.bootstrapUser ?? user,
     deployUser: process.env.GND_DEPLOY_USER ?? p.deployUser ?? user,
-    sshKey: process.env.GND_SSH_KEY ?? p.sshKey ?? null,
-    authorizedKeys:
+    sshKey: expandHome(process.env.GND_SSH_KEY ?? p.sshKey ?? null),
+    authorizedKeys: expandHome(
       process.env.GND_AUTHORIZED_KEYS ?? p.authorizedKeys ?? join(home, ".ssh", "authorized_keys"),
+    ),
     pollIntervalMs: num(process.env.GND_POLL_MS, p.pollIntervalMs),
     port: num(process.env.GND_PORT, p.port),
   }

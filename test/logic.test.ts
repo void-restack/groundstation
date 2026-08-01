@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { parseLine } from "../src/adapters/ansible"
 import { TOOLS, detectTool, installCommand } from "../src/adapters/tools"
-import { computeCapabilities, resolveConfig, type PersistedConfig } from "../src/config"
+import { computeCapabilities, expandHome, resolveConfig, type PersistedConfig } from "../src/config"
 import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
@@ -85,6 +85,22 @@ test("resolveConfig: sshKey stays null when unset, so ssh uses its own agent/con
 test("resolveConfig: authorizedKeys defaults to the standard file, not a personal pubkey", () => {
   withEnv({ GND_AUTHORIZED_KEYS: undefined }, () => {
     expect(resolveConfig(basePersisted).authorizedKeys.endsWith("/.ssh/authorized_keys")).toBe(true)
+  })
+})
+
+test("expandHome expands a leading ~ so existsSync-based checks work", () => {
+  const r = expandHome("~/dotfiles/ansible")
+  expect(r.startsWith("~")).toBe(false)
+  expect(r.endsWith("/dotfiles/ansible")).toBe(true)
+  expect(expandHome("/abs/path")).toBe("/abs/path")
+  expect(expandHome(null)).toBeNull()
+})
+
+test("resolveConfig expands ~ in ansibleDir so a tilde path enables provisioning", () => {
+  withEnv({ GND_ANSIBLE_DIR: undefined }, () => {
+    const c = resolveConfig({ ...basePersisted, ansibleDir: "~/x/ansible" })
+    expect(c.ansibleDir?.startsWith("~")).toBe(false)
+    expect(c.ansibleDir?.endsWith("/x/ansible")).toBe(true)
   })
 })
 
