@@ -147,6 +147,8 @@ export const gcp: Provider = {
       name: spec.name,
       zone,
       machineType: spec.size,
+      customCpu: spec.customCpu,
+      customMemoryGb: spec.customMemoryGb,
       imageFamily: family,
       imageProject: project,
       userDataFile: spec.extra?.["user-data"],

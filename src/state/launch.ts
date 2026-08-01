@@ -12,6 +12,8 @@ export interface LaunchSpec {
   machineType: string
   imageFamily: string
   imageProject: string
+  customCpu?: number
+  customMemoryGb?: number
   diskSizeGb?: number
   diskType?: string
   allowHttp: boolean
@@ -137,6 +139,8 @@ export async function beginLaunch(spec: LaunchSpec) {
       region: spec.zone,
       zone: spec.zone,
       size: spec.machineType,
+      customCpu: spec.customCpu,
+      customMemoryGb: spec.customMemoryGb,
       image: `${spec.imageFamily}|${spec.imageProject}`,
       diskSizeGb: spec.diskSizeGb,
       diskType: spec.diskType,

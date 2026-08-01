@@ -46,8 +46,14 @@ const IMAGES: Image[] = [
   { label: "ubuntu-24.04-lts", family: "ubuntu-2404-lts", project: "ubuntu-os-cloud" },
 ]
 
-// fields: NAME, ZONE, MACHINE, IMAGE, DISK, DISK-TYPE, FIREWALL, SPOT, PROVISION, CONTINUE
-const FIELD_COUNT = 10
+// fields: NAME, ZONE, MACHINE, CUSTOM, IMAGE, DISK, DISK-TYPE, FIREWALL, SPOT, PROVISION, CONTINUE
+const FIELD_COUNT = 11
+
+/** Parse a "cores,GB" (or "cores GB") override into {cpu, memGb}, or null. */
+function parseCustom(s: string): { cpu: number; memGb: number } | null {
+  const [cpu, memGb] = s.split(/[,\s]+/).map(Number)
+  return cpu && memGb && cpu > 0 && memGb > 0 ? { cpu, memGb } : null
+}
 
 const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1)
 
@@ -134,6 +140,7 @@ export function Launch() {
   const [name, setName] = useState("")
   const [zone, setZone] = useState(FALLBACK_ZONES[0]!)
   const [machine, setMachine] = useState(MACHINES[0]!)
+  const [custom, setCustom] = useState("")
   const [image, setImage] = useState<Image>(IMAGES[0]!)
   const [disk, setDisk] = useState("")
   const [diskType, setDiskType] = useState("")
@@ -232,10 +239,13 @@ export function Launch() {
     }
   }, [zone])
 
+  const cx = parseCustom(custom)
   const buildSpec = (): LaunchSpec => ({
     name: name.trim(),
     zone,
     machineType: machine,
+    customCpu: cx?.cpu,
+    customMemoryGb: cx?.memGb,
     imageFamily: image.family,
     imageProject: image.project,
     diskSizeGb: Number(disk) || undefined,
@@ -258,12 +268,12 @@ export function Launch() {
   const openFocusedPicker = () => {
     if (focus === 1) setPicker("zone")
     else if (focus === 2) setPicker("machine")
-    else if (focus === 3) setPicker("image")
-    else if (focus === 5) setPicker("disktype")
-    else if (focus === 6) setPicker("firewall")
-    else if (focus === 7) setPicker("spot")
-    else if (focus === 8) setPicker("provision")
-    else proceed() // NAME (0), DISK (4), CONTINUE (9)
+    else if (focus === 4) setPicker("image")
+    else if (focus === 6) setPicker("disktype")
+    else if (focus === 7) setPicker("firewall")
+    else if (focus === 8) setPicker("spot")
+    else if (focus === 9) setPicker("provision")
+    else proceed() // NAME (0), CUSTOM (3), DISK (5), CONTINUE (10)
   }
 
   useKeyboard((key) => {
@@ -303,19 +313,22 @@ export function Launch() {
             <input focused={focus === 0 && !picker} flexGrow={1} placeholder="required" onInput={setName} />
           </Field>
           <PickerField label="ZONE" value={zone} focused={focus === 1} busy={zonesLoading} />
-          <PickerField label="MACHINE" value={machine} focused={focus === 2} busy={machinesLoading} />
-          <PickerField label="IMAGE" value={image.label} focused={focus === 3} />
-          <Field label="DISK GB" focused={focus === 4}>
-            <input focused={focus === 4 && !picker} flexGrow={1} placeholder="default (image size)" onInput={setDisk} />
+          <PickerField label="MACHINE" value={cx ? `custom ${cx.cpu}c/${cx.memGb}g` : machine} focused={focus === 2} busy={machinesLoading} />
+          <Field label="CUSTOM" focused={focus === 3}>
+            <input focused={focus === 3 && !picker} flexGrow={1} placeholder="optional — override cores,GB e.g. 4,8" onInput={setCustom} />
           </Field>
-          <PickerField label="DISK TYPE" value={diskTypeLabel} focused={focus === 5} busy={diskTypesLoading} />
-          <PickerField label="FIREWALL" value={firewallLabel} focused={focus === 6} />
-          <PickerField label="SPOT" value={spotLabel} focused={focus === 7} />
-          <PickerField label="PROVISION" value={provisionLabel} focused={focus === 8} />
+          <PickerField label="IMAGE" value={image.label} focused={focus === 4} />
+          <Field label="DISK GB" focused={focus === 5}>
+            <input focused={focus === 5 && !picker} flexGrow={1} placeholder="default (image size)" onInput={setDisk} />
+          </Field>
+          <PickerField label="DISK TYPE" value={diskTypeLabel} focused={focus === 6} busy={diskTypesLoading} />
+          <PickerField label="FIREWALL" value={firewallLabel} focused={focus === 7} />
+          <PickerField label="SPOT" value={spotLabel} focused={focus === 8} />
+          <PickerField label="PROVISION" value={provisionLabel} focused={focus === 9} />
 
           <box flexDirection="row" gap={1} marginTop={1}>
-            <text fg={focus === 9 ? palette.nominal : palette.static}>
-              {focus === 9 ? glyph.arrowRight : " "} REVIEW & LAUNCH
+            <text fg={focus === 10 ? palette.nominal : palette.static}>
+              {focus === 10 ? glyph.arrowRight : " "} REVIEW & LAUNCH
             </text>
             {!name.trim() ? <text fg={palette.hairline}>{glyph.sep} name required</text> : null}
           </box>
@@ -337,7 +350,7 @@ export function Launch() {
         >
           <text fg={palette.static}>name {glyph.arrowRight} <span fg={palette.starlight}>{spec.name}</span></text>
           <text fg={palette.static}>zone {glyph.arrowRight} <span fg={palette.starlight}>{spec.zone}</span></text>
-          <text fg={palette.static}>machine {glyph.arrowRight} <span fg={palette.starlight}>{spec.machineType}</span></text>
+          <text fg={palette.static}>machine {glyph.arrowRight} <span fg={palette.starlight}>{cx ? `custom ${cx.cpu} vCPU / ${cx.memGb} GB` : spec.machineType}</span></text>
           <text fg={palette.static}>image {glyph.arrowRight} <span fg={palette.starlight}>{spec.imageFamily}</span> ({spec.imageProject})</text>
           <text fg={palette.static}>disk {glyph.arrowRight} <span fg={palette.starlight}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
           <text fg={palette.static}>firewall {glyph.arrowRight} <span fg={palette.starlight}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>

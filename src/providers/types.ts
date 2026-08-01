@@ -14,6 +14,8 @@ export interface CreateSpec {
   zone?: string
   size: string
   image: string
+  customCpu?: number
+  customMemoryGb?: number
   diskSizeGb?: number
   diskType?: string
   allowHttp?: boolean
