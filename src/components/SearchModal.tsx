@@ -1,6 +1,6 @@
 import { useKeyboard } from "@opentui/react"
 import fuzzysort from "fuzzysort"
-import { memo, useCallback, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { glyph, palette } from "../theme"
 import { Dialog } from "./Dialog"
 
@@ -53,11 +53,19 @@ export function SearchModal<T>({
 }) {
   const [query, setQuery] = useState("")
   const [index, setIndex] = useState(0)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  // Debounce the filter: typing must NOT re-render the modal on every keystroke,
+  // or the concurrent re-render disrupts the focused input and drops characters.
   const onInput = useCallback((v: string) => {
-    setQuery(v)
-    setIndex(0)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      setQuery(v)
+      setIndex(0)
+    }, 90)
   }, [])
+
+  useEffect(() => () => clearTimeout(timer.current), [])
 
   const filtered = useMemo(() => {
     const q = query.trim()

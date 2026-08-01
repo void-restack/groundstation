@@ -1,5 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react"
-import { memo, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { uplink } from "../adapters/ssh"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
@@ -29,6 +29,18 @@ export function CommandPalette() {
   const { instances } = useFleet()
   const { selected } = useUI()
   const renderer = useRenderer()
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // Debounced so typing never re-renders the palette per keystroke (see SearchModal).
+  const onInput = useCallback((v: string) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      setQuery(v)
+      setIndex(0)
+    }, 90)
+  }, [])
+
+  useEffect(() => () => clearTimeout(timer.current), [])
 
   const current = instances.find((s) => s.name === selected) ?? null
 
@@ -97,7 +109,7 @@ export function CommandPalette() {
       gap={1}
       zIndex={100}
     >
-      <PaletteInput onInput={setQuery} />
+      <PaletteInput onInput={onInput} />
       <box flexDirection="column">
         {filtered.length === 0 ? (
           <text fg={palette.static}>no matches</text>
