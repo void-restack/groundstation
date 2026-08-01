@@ -1,37 +1,19 @@
-import { TextAttributes, type InputRenderable } from "@opentui/core"
+import { TextAttributes } from "@opentui/core"
 import { useKeyboard, useRenderer } from "@opentui/react"
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { uplink } from "../adapters/ssh"
 import { reauth } from "../adapters/auth"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
 import { setPalette, setProjectSwitch, setScreen, setTools, useUI } from "../state/ui"
 import { glyph, palette } from "../theme"
+import { FocusInput } from "./FocusInput"
 
 interface Command {
   id: string
   title: string
   run: () => void
 }
-
-/** Memoized + imperatively focused after mount, so re-renders never disturb the input
- *  and the first keystroke isn't dropped before focus settles (see SearchModal). */
-const PaletteInput = memo(function PaletteInput({ onInput }: { onInput: (v: string) => void }) {
-  const inputRef = useRef<InputRenderable | null>(null)
-  useEffect(() => {
-    const id = setTimeout(() => {
-      const el = inputRef.current
-      if (el && !el.isDestroyed) el.focus()
-    }, 1)
-    return () => clearTimeout(id)
-  }, [])
-  return (
-    <box flexDirection="row" gap={1}>
-      <text fg={palette.beacon}>{glyph.arrowRight}</text>
-      <input ref={inputRef} flexGrow={1} placeholder="type a command…" onInput={onInput} />
-    </box>
-  )
-})
 
 export function CommandPalette() {
   const [query, setQuery] = useState("")
@@ -118,7 +100,10 @@ export function CommandPalette() {
         <text fg={palette.beacon} attributes={TextAttributes.BOLD}>COMMAND</text>
         <text fg={palette.static}>esc</text>
       </box>
-      <PaletteInput onInput={onInput} />
+      <box flexDirection="row" gap={1}>
+        <text fg={palette.beacon}>{glyph.arrowRight}</text>
+        <FocusInput placeholder="type a command…" onInput={onInput} />
+      </box>
       <box flexDirection="column">
         {filtered.length === 0 ? (
           <text fg={palette.static}>no matches</text>

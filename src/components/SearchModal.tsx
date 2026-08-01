@@ -1,9 +1,9 @@
-import type { InputRenderable } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import fuzzysort from "fuzzysort"
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { glyph, palette } from "../theme"
 import { Dialog } from "./Dialog"
+import { FocusInput } from "./FocusInput"
 
 export interface SearchItem<T> {
   value: T
@@ -13,35 +13,6 @@ export interface SearchItem<T> {
 }
 
 const VISIBLE = 8
-
-/**
- * The query input. Isolated behind memo so re-rendering the list never
- * reconciles the live <input>, and focused imperatively one tick after mount
- * (as opencode does) — the declarative `focused` prop lands too early and the
- * first keystroke is dropped before focus settles.
- */
-const SearchInput = memo(function SearchInput({
-  placeholder,
-  onInput,
-}: {
-  placeholder: string
-  onInput: (v: string) => void
-}) {
-  const inputRef = useRef<InputRenderable | null>(null)
-  useEffect(() => {
-    const id = setTimeout(() => {
-      const el = inputRef.current
-      if (el && !el.isDestroyed) el.focus()
-    }, 1)
-    return () => clearTimeout(id)
-  }, [])
-  return (
-    <box flexDirection="row" gap={1}>
-      <text fg={palette.beacon}>{glyph.arrowRight}</text>
-      <input ref={inputRef} flexGrow={1} placeholder={placeholder} onInput={onInput} />
-    </box>
-  )
-})
 
 /**
  * A fuzzy-search picker in a modal: a focused query input over a live-filtered,
@@ -102,7 +73,10 @@ export function SearchModal<T>({
 
   return (
     <Dialog title={title} onClose={onClose} footer={footer} width="60%">
-      <SearchInput placeholder={placeholder} onInput={onInput} />
+      <box flexDirection="row" gap={1}>
+        <text fg={palette.beacon}>{glyph.arrowRight}</text>
+        <FocusInput placeholder={placeholder} onInput={onInput} />
+      </box>
       <box flexDirection="column" height={rows}>
         {filtered.length === 0 ? (
           <text fg={palette.static}>no matches</text>

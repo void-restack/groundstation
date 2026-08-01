@@ -3,6 +3,7 @@ import { useState } from "react"
 import { resolveConfirm, useConfirm, type ConfirmRequest } from "../state/confirm"
 import { glyph, palette } from "../theme"
 import { Dialog } from "./Dialog"
+import { FocusInput } from "./FocusInput"
 
 export function ConfirmDialog() {
   const req = useConfirm()
@@ -57,7 +58,7 @@ function TypedConfirm({ req }: { req: ConfirmRequest }) {
       <Billing note={req.billing} />
       <box flexDirection="row" gap={1} marginTop={1}>
         <text fg={palette.beacon}>{glyph.arrowRight}</text>
-        <input focused placeholder={expected} onInput={setValue} />
+        <FocusInput placeholder={expected} onInput={setValue} />
       </box>
     </Dialog>
   )
