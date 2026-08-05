@@ -311,18 +311,39 @@ test("validUsername accepts linux names and rejects bad ones", () => {
 })
 
 test("userSetupCommands creates the user, adds the key, and gates sudo on the flag", () => {
-  const withSudo = userSetupCommands("deploy", true, "ssh-ed25519 AAAA deploy@host").join("\n")
+  const withSudo = userSetupCommands("deploy", true, ["ssh-ed25519 AAAA deploy@host"]).join("\n")
   expect(withSudo).toContain("useradd -m -s /bin/bash deploy")
   expect(withSudo).toContain("/etc/sudoers.d/90-gnd-deploy")
   expect(withSudo).toContain("ssh-ed25519 AAAA deploy@host")
   expect(withSudo).toContain("authorized_keys")
 
-  const noSudo = userSetupCommands("deploy", false, "ssh-ed25519 AAAA").join("\n")
+  const noSudo = userSetupCommands("deploy", false, ["ssh-ed25519 AAAA"]).join("\n")
   expect(noSudo).not.toContain("sudoers")
 })
 
+test("userSetupCommands authorizes every key idempotently, skipping blanks", () => {
+  const lines = userSetupCommands("deploy", false, ["ssh-ed25519 AAAA one", "", "ssh-rsa BBBB two"])
+  const grepLines = lines.filter((l) => l.includes("authorized_keys") && l.startsWith("grep"))
+  expect(grepLines.length).toBe(2)
+  const joined = lines.join("\n")
+  expect(joined).toContain("ssh-ed25519 AAAA one")
+  expect(joined).toContain("ssh-rsa BBBB two")
+  // every add is guarded by grep -qxF so a reboot re-run appends nothing
+  for (const g of grepLines) expect(g).toContain("grep -qxF")
+})
+
+test("buildFirstBoot composes one fragment per user for multiple users", () => {
+  const web = userSetupCommands("web", true, ["ssh-ed25519 AAAA web"]).join("\n")
+  const db = userSetupCommands("db", false, ["ssh-ed25519 BBBB db"]).join("\n")
+  const script = buildFirstBoot([web, db])
+  expect(script).toContain("useradd -m -s /bin/bash web")
+  expect(script).toContain("useradd -m -s /bin/bash db")
+  expect(script).toContain("/etc/sudoers.d/90-gnd-web")
+  expect(script).not.toContain("/etc/sudoers.d/90-gnd-db")
+})
+
 test("buildFirstBoot without a recipe guards on gnd-provisioned and ends with the marker", () => {
-  const frag = userSetupCommands("deploy", true, "ssh-ed25519 AAAA").join("\n")
+  const frag = userSetupCommands("deploy", true, ["ssh-ed25519 AAAA"]).join("\n")
   const script = buildFirstBoot([frag])
   expect(script.startsWith("#!/bin/bash")).toBe(true)
   expect(script).toContain("[ -f /var/lib/gnd-provisioned ] && exit 0")
@@ -333,7 +354,7 @@ test("buildFirstBoot without a recipe guards on gnd-provisioned and ends with th
 
 test("buildFirstBoot with a bash recipe runs fragments once then appends the recipe verbatim", () => {
   const recipe = TEMPLATES.find((t) => t.id === "docker")!.content
-  const frag = userSetupCommands("deploy", true, "ssh-ed25519 AAAA").join("\n")
+  const frag = userSetupCommands("deploy", true, ["ssh-ed25519 AAAA"]).join("\n")
   const script = buildFirstBoot([frag], recipe)
   expect(script.startsWith("#!/bin/bash")).toBe(true)
   // fragments guarded so they run only once

@@ -8,7 +8,8 @@
 export interface UserSetup {
   username: string
   sudo: boolean
-  publicKeyPath: string
+  /** Paths to authorized public-key files; read into the script by applySetup. */
+  keys: string[]
 }
 
 /** A valid Linux login name: starts with a letter or underscore, then word chars. */
@@ -16,10 +17,9 @@ export function validUsername(name: string): boolean {
   return /^[a-z_][a-z0-9_-]{0,31}$/.test(name)
 }
 
-/** The bash lines that create the user, grant sudo (optional), and add the key. */
-export function userSetupCommands(username: string, sudo: boolean, publicKey: string): string[] {
+/** The bash lines that create the user, grant sudo (optional), and authorize every key. */
+export function userSetupCommands(username: string, sudo: boolean, keys: string[]): string[] {
   const u = username
-  const key = publicKey.trim()
   const lines = [`id -u ${u} >/dev/null 2>&1 || useradd -m -s /bin/bash ${u}`]
   if (sudo) {
     lines.push(
@@ -30,7 +30,13 @@ export function userSetupCommands(username: string, sudo: boolean, publicKey: st
   lines.push(
     `install -d -m 700 -o ${u} -g ${u} /home/${u}/.ssh`,
     `touch /home/${u}/.ssh/authorized_keys`,
-    `grep -qxF '${key}' /home/${u}/.ssh/authorized_keys || echo '${key}' >> /home/${u}/.ssh/authorized_keys`,
+  )
+  for (const raw of keys) {
+    const key = raw.trim()
+    if (!key) continue
+    lines.push(`grep -qxF '${key}' /home/${u}/.ssh/authorized_keys || echo '${key}' >> /home/${u}/.ssh/authorized_keys`)
+  }
+  lines.push(
     `chmod 600 /home/${u}/.ssh/authorized_keys`,
     `chown -R ${u}:${u} /home/${u}/.ssh`,
   )

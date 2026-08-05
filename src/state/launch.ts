@@ -42,7 +42,7 @@ export interface LaunchSpec {
   swapMb?: number
   hardenSsh?: boolean
   provisioning: ProvisioningProfile
-  userSetup?: UserSetup
+  users?: UserSetup[]
 }
 
 /**
@@ -54,9 +54,17 @@ export interface LaunchSpec {
  */
 function applySetup(extra: Record<string, string>, spec: LaunchSpec) {
   const fragments: string[] = []
-  if (spec.userSetup) {
-    const key = readFileSync(spec.userSetup.publicKeyPath, "utf8").trim()
-    fragments.push(userSetupCommands(spec.userSetup.username, spec.userSetup.sudo, key).join("\n"))
+  for (const u of spec.users ?? []) {
+    const keys = u.keys
+      .map((p) => {
+        try {
+          return readFileSync(p, "utf8").trim()
+        } catch {
+          return ""
+        }
+      })
+      .filter(Boolean)
+    fragments.push(userSetupCommands(u.username, u.sudo, keys).join("\n"))
   }
   if (spec.env && Object.keys(spec.env).length) fragments.push(envExports(spec.env))
   if (spec.packages && spec.packages.length) fragments.push(installPackages(spec.packages))

@@ -11,6 +11,7 @@ import { OpRunner } from "../src/components/OpRunner"
 import { ProjectSwitcher } from "../src/components/ProjectSwitcher"
 import { ProviderSwitcher } from "../src/components/ProviderSwitcher"
 import { SearchModal } from "../src/components/SearchModal"
+import { ChecklistModal } from "../src/components/ChecklistModal"
 import { ToolsModal } from "../src/components/ToolsModal"
 import { Launch } from "../src/screens/Launch"
 import { actionsFor, describeLines } from "../src/state/actions"
@@ -231,6 +232,27 @@ test("Launch form renders sectioned fields inside a scrollbox", async () => {
     expect(frame).toContain("BASICS")
     expect(frame).toContain("NAME")
     expect(frame).toContain("ZONE")
+  } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("ChecklistModal renders rows with checkboxes and marks the pre-selected", async () => {
+  const items = [
+    { value: "a", label: "id_ed25519.pub" },
+    { value: "b", label: "google_compute_engine.pub" },
+  ]
+  const setup = await testRender(
+    <ChecklistModal title="AUTHORIZE SSH KEYS" items={items} selected={["b"]} onConfirm={() => {}} onClose={() => {}} />,
+    { width: 60, height: 16 },
+  )
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("AUTHORIZE SSH KEYS")
+    expect(frame).toContain("id_ed25519.pub")
+    expect(frame).toContain("[x]") // the pre-selected key
+    expect(frame).toContain("[ ]") // the unselected key
   } finally {
     setup.renderer.destroy()
   }

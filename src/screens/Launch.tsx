@@ -7,6 +7,7 @@ import { zoneLocation } from "../lib/geo"
 import { parseEnv, parseLabels, parsePackages, parseSwapMb, validHostname } from "../lib/parse"
 import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
+import { ChecklistModal } from "../components/ChecklistModal"
 import { SearchModal, type SearchItem } from "../components/SearchModal"
 import { Spinner } from "../components/Spinner"
 import type { LaunchStep } from "../domain"
@@ -23,17 +24,26 @@ import { glyph, palette } from "../theme"
 type Stage = "form" | "review" | "creating"
 type Picker =
   | "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
-  | "serviceaccount" | "scopes" | "timezone" | "harden" | "sudo" | "sshkey"
+  | "serviceaccount" | "scopes" | "timezone" | "harden" | "sudo" | "userkeys"
 type Section = "BASICS" | "SETUP" | "ACCESS"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
 
-/** One create-form field: how it renders, and which picker (if any) enter opens. */
+/** One create-form field: how it renders, and what enter does (picker, action, or continue). */
 interface FieldDesc {
   id: string
   section: Section
   picker: Picker | null
+  onEnter?: () => void
   node: (focused: boolean) => ReactNode
+}
+
+/** A repeatable login-user row in the ACCESS section (keys are public-key paths). */
+interface UserRow {
+  id: number
+  username: string
+  sudo: boolean
+  keys: string[]
 }
 
 const SUBMIT = "__submit__"
@@ -206,19 +216,27 @@ export function Launch() {
   const [timezone, setTimezone] = useState("")
   const [swapInput, setSwapInput] = useState("")
   const [hardenSsh, setHardenSsh] = useState(false)
-  const [user, setUser] = useState("")
-  const [sudo, setSudo] = useState(true)
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+  const userIdRef = useRef(0)
   const pubKeyItems = useMemo<SearchItem<string>[]>(
     () => detectPublicKeys().map((k) => ({ value: k.path, label: k.label })),
     [],
   )
-  const [sshKeyPath, setSshKeyPath] = useState<string>(
-    () => pubKeyItems.find((k) => k.label === "google_compute_engine.pub")?.value ?? pubKeyItems[0]?.value ?? "",
-  )
-  const sudoLabel = sudo ? "yes (passwordless sudo)" : "no (standard user)"
-  const sshKeyLabel = pubKeyItems.find((k) => k.value === sshKeyPath)?.label ?? "none"
-  const userValid = !user.trim() || validUsername(user.trim())
-  const userNeedsKey = Boolean(user.trim()) && !sshKeyPath
+
+  const addUser = () => {
+    const id = userIdRef.current++
+    const defaultKey =
+      pubKeyItems.find((k) => k.label === "google_compute_engine.pub")?.value ?? pubKeyItems[0]?.value
+    setUsers((us) => [...us, { id, username: "", sudo: true, keys: defaultKey ? [defaultKey] : [] }])
+  }
+  const updateUser = (i: number, patch: Partial<UserRow>) =>
+    setUsers((us) => us.map((u, j) => (j === i ? { ...u, ...patch } : u)))
+  const removeUser = (i: number) => setUsers((us) => us.filter((_, j) => j !== i))
+
+  const keyLabel = (path: string) => pubKeyItems.find((k) => k.value === path)?.label ?? baseName(path)
+  const keysLabel = (paths: string[]) => (paths.length ? paths.map(keyLabel).join(", ") : "none — pick at least one")
+  const usersInvalid = users.some((u) => !validUsername(u.username.trim()) || u.keys.length === 0)
   const labels = parseLabels(labelsInput)
   const scopeLabel = SCOPE_PRESETS.find((p) => p.value === scopes)?.label ?? scopes
   const saLabel = saItems.find((s) => s.value === serviceAccount)?.label ?? (serviceAccount || DEFAULT_SA.label)
@@ -367,6 +385,9 @@ export function Launch() {
 
   const cx = parseCustom(custom)
   const [imgFamily = "", imgProject = ""] = image.split("|")
+  const specUsers = users
+    .filter((u) => validUsername(u.username.trim()) && u.keys.length > 0)
+    .map((u) => ({ username: u.username.trim(), sudo: u.sudo, keys: u.keys }))
   const buildSpec = (): LaunchSpec => ({
     name: name.trim(),
     zone,
@@ -390,10 +411,7 @@ export function Launch() {
     swapMb: swapMb ?? undefined,
     hardenSsh: hardenSsh || undefined,
     provisioning,
-    userSetup:
-      user.trim() && validUsername(user.trim()) && sshKeyPath
-        ? { username: user.trim(), sudo, publicKeyPath: sshKeyPath }
-        : undefined,
+    users: specUsers.length ? specUsers : undefined,
   })
 
   // The form is a flat, sectioned descriptor list; focus, render, and picker
@@ -479,17 +497,41 @@ export function Launch() {
 
     { id: "serviceaccount", section: "ACCESS", picker: "serviceaccount", node: (f) => <PickerField label="SVC ACCT" value={saLabel} focused={f} busy={saLoading} /> },
     { id: "scopes", section: "ACCESS", picker: "scopes", node: (f) => <PickerField label="SCOPES" value={scopeLabel} focused={f} /> },
-    {
-      id: "user", section: "ACCESS", picker: null,
-      node: (f) => (
-        <Field label="USER" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="optional — create a login user e.g. deploy" onInput={setUser} />
-        </Field>
-      ),
-    },
-    { id: "sudo", section: "ACCESS", picker: "sudo", node: (f) => <PickerField label="SUDO" value={user.trim() ? sudoLabel : "—"} focused={f} /> },
-    { id: "sshkey", section: "ACCESS", picker: "sshkey", node: (f) => <PickerField label="SSH KEY" value={user.trim() ? sshKeyLabel : "—"} focused={f} /> },
   ]
+
+  // Repeatable login-user rows: each contributes name + sudo + multi-key + remove.
+  users.forEach((u, i) => {
+    descriptors.push(
+      {
+        id: `user-${i}-name`, section: "ACCESS", picker: null,
+        node: (f) => (
+          <Field label={`USER ${i + 1}`} focused={f}>
+            <input focused={f && !picker} flexGrow={1} value={u.username} placeholder="login name e.g. deploy" onInput={(v) => updateUser(i, { username: v })} />
+          </Field>
+        ),
+      },
+      {
+        id: `user-${i}-sudo`, section: "ACCESS", picker: null,
+        onEnter: () => { setEditIdx(i); setPicker("sudo") },
+        node: (f) => <PickerField label="  sudo" value={u.sudo ? "yes (passwordless sudo)" : "no (standard user)"} focused={f} />,
+      },
+      {
+        id: `user-${i}-keys`, section: "ACCESS", picker: null,
+        onEnter: () => { setEditIdx(i); setPicker("userkeys") },
+        node: (f) => <PickerField label="  keys" value={keysLabel(u.keys)} focused={f} />,
+      },
+      {
+        id: `user-${i}-remove`, section: "ACCESS", picker: null,
+        onEnter: () => removeUser(i),
+        node: (f) => <text fg={f ? palette.error : palette.muted}>{f ? glyph.arrowRight : " "}  remove user {i + 1}</text>,
+      },
+    )
+  })
+  descriptors.push({
+    id: "user-add", section: "ACCESS", picker: null,
+    onEnter: addUser,
+    node: (f) => <text fg={f ? palette.ok : palette.muted}>{f ? glyph.arrowRight : " "} + add login user</text>,
+  })
 
   const focusIds = [...descriptors.map((d) => d.id), SUBMIT]
   const focusedId = focusIds[Math.min(focus, focusIds.length - 1)] ?? SUBMIT
@@ -510,13 +552,14 @@ export function Launch() {
   }
 
   const proceed = () => {
-    if (!name.trim() || !userValid || userNeedsKey || !hostnameValid || swapInvalid) return
+    if (!name.trim() || usersInvalid || !hostnameValid || swapInvalid) return
     setStage("review")
   }
 
   const openFocusedPicker = () => {
     if (focusedId === SUBMIT) return proceed()
     const d = descriptors.find((x) => x.id === focusedId)
+    if (d?.onEnter) return d.onEnter()
     if (d?.picker) return setPicker(d.picker)
     return proceed()
   }
@@ -549,10 +592,8 @@ export function Launch() {
 
   const validationHint = !name.trim() ? (
     <text fg={palette.border}>{glyph.sep} name required</text>
-  ) : !userValid ? (
-    <text fg={palette.border}>{glyph.sep} user must be a valid linux name</text>
-  ) : userNeedsKey ? (
-    <text fg={palette.border}>{glyph.sep} pick an ssh key for the user</text>
+  ) : usersInvalid ? (
+    <text fg={palette.border}>{glyph.sep} each user needs a valid name and at least one key</text>
   ) : !hostnameValid ? (
     <text fg={palette.border}>{glyph.sep} hostname must be a valid RFC1123 label</text>
   ) : swapInvalid ? (
@@ -641,9 +682,11 @@ export function Launch() {
             {hardenSsh ? (
               <text fg={palette.muted}>harden ssh {glyph.arrowRight} <span fg={palette.text}>yes</span></text>
             ) : null}
-            {spec.userSetup ? (
-              <text fg={palette.muted}>user {glyph.arrowRight} <span fg={palette.text}>{spec.userSetup.username}</span> {sudo ? "(sudo)" : "(no sudo)"} {glyph.sep} key {sshKeyLabel}</text>
-            ) : null}
+            {specUsers.map((u, i) => (
+              <text key={i} fg={palette.muted}>
+                user {glyph.arrowRight} <span fg={palette.text}>{u.username}</span> {u.sudo ? "(sudo)" : "(no sudo)"} {glyph.sep} keys {u.keys.map(keyLabel).join(", ")}
+              </text>
+            ))}
           </scrollbox>
           <text fg={palette.accent}>[Enter] create {glyph.sep} [esc] back</text>
         </box>
@@ -739,19 +782,20 @@ export function Launch() {
         />
       ) : picker === "sudo" ? (
         <SearchModal<boolean>
-          title="SUDO FOR NEW USER"
+          title="SUDO FOR THIS USER"
           placeholder="passwordless sudo · standard…"
           items={SUDO_OPTS}
-          onPick={setSudo}
-          onClose={() => setPicker(null)}
+          onPick={(v) => { if (editIdx !== null) updateUser(editIdx, { sudo: v }) }}
+          onClose={() => { setPicker(null); setEditIdx(null) }}
         />
-      ) : picker === "sshkey" ? (
-        <SearchModal<string>
-          title="AUTHORIZE SSH KEY"
-          placeholder={pubKeyItems.length ? "pick a public key…" : "no ~/.ssh/*.pub found"}
+      ) : picker === "userkeys" ? (
+        <ChecklistModal<string>
+          title="AUTHORIZE SSH KEYS"
+          placeholder="no ~/.ssh/*.pub found"
           items={pubKeyItems}
-          onPick={setSshKeyPath}
-          onClose={() => setPicker(null)}
+          selected={editIdx !== null ? users[editIdx]?.keys ?? [] : []}
+          onConfirm={(vals) => { if (editIdx !== null) updateUser(editIdx, { keys: vals }) }}
+          onClose={() => { setPicker(null); setEditIdx(null) }}
         />
       ) : null}
     </box>
