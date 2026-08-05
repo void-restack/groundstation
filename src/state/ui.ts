@@ -9,6 +9,7 @@ interface UIState {
   toolsOpen: boolean
   actionMenuOpen: boolean
   projectSwitchOpen: boolean
+  providerSwitchOpen: boolean
 }
 
 const ui = createStore<UIState>({
@@ -18,6 +19,7 @@ const ui = createStore<UIState>({
   toolsOpen: false,
   actionMenuOpen: false,
   projectSwitchOpen: false,
+  providerSwitchOpen: false,
 })
 
 export const useUI = () => useStore(ui)
@@ -28,6 +30,7 @@ export const setPalette = (paletteOpen: boolean) => ui.set((s) => ({ ...s, palet
 export const setTools = (toolsOpen: boolean) => ui.set((s) => ({ ...s, toolsOpen }))
 export const setActionMenu = (actionMenuOpen: boolean) => ui.set((s) => ({ ...s, actionMenuOpen }))
 export const setProjectSwitch = (projectSwitchOpen: boolean) => ui.set((s) => ({ ...s, projectSwitchOpen }))
+export const setProviderSwitch = (providerSwitchOpen: boolean) => ui.set((s) => ({ ...s, providerSwitchOpen }))
 
 export function moveSelection(names: string[], delta: number) {
   ui.set((s) => {

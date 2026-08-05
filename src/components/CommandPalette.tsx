@@ -5,7 +5,7 @@ import { uplink } from "../adapters/ssh"
 import { reauth } from "../adapters/auth"
 import { isMuted, toggleMute } from "../audio/cues"
 import { logEvent, refreshFleet, useFleet } from "../state/fleet"
-import { setPalette, setProjectSwitch, setScreen, setTools, useUI } from "../state/ui"
+import { setPalette, setProjectSwitch, setProviderSwitch, setScreen, setTools, useUI } from "../state/ui"
 import { glyph, palette } from "../theme"
 import { FocusInput } from "./FocusInput"
 
@@ -39,7 +39,8 @@ export function CommandPalette() {
         },
       },
       { id: "map", title: "Region map", run: () => setScreen("orbit") },
-      { id: "project", title: "Switch project — change active GCP project", run: () => setProjectSwitch(true) },
+      { id: "provider", title: "Switch provider (cloud)", run: () => setProviderSwitch(true) },
+      { id: "project", title: "Switch project (GCP)", run: () => setProjectSwitch(true) },
       {
         id: "auth",
         title: "Re-authenticate — gcloud auth login",

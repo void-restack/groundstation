@@ -9,6 +9,7 @@ import { Glass } from "../src/components/Glass"
 import { LogView } from "../src/components/LogView"
 import { OpRunner } from "../src/components/OpRunner"
 import { ProjectSwitcher } from "../src/components/ProjectSwitcher"
+import { ProviderSwitcher } from "../src/components/ProviderSwitcher"
 import { SearchModal } from "../src/components/SearchModal"
 import { ToolsModal } from "../src/components/ToolsModal"
 import { actionsFor, describeLines } from "../src/state/actions"
@@ -154,6 +155,19 @@ test("ProjectSwitcher renders the project picker via SearchModal", async () => {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
     expect(frame).toContain("SWITCH PROJECT")
+  } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("ProviderSwitcher lists clouds and tags unavailable ones coming soon", async () => {
+  const setup = await testRender(<ProviderSwitcher onClose={() => {}} />, { width: 60, height: 20 })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("SWITCH PROVIDER")
+    expect(frame).toContain("Google Cloud")
+    expect(frame).toContain("coming soon")
   } finally {
     setup.renderer.destroy()
   }

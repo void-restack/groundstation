@@ -1,5 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import { clockLocal, clockUTC } from "../lib/format"
+import { getProvider } from "../providers/registry"
 import { useClock } from "../state/clock"
 import { useProject } from "../state/fleet"
 import { glyph, palette } from "../theme"
@@ -7,6 +8,7 @@ import { glyph, palette } from "../theme"
 export function TopBar({ fleetSize }: { fleetSize: number }) {
   useClock()
   const project = useProject()
+  const provider = getProvider().id.toUpperCase()
   const now = new Date()
   return (
     <box
@@ -25,7 +27,11 @@ export function TopBar({ fleetSize }: { fleetSize: number }) {
         </text>
         <text fg={palette.muted}> {glyph.sep} fleet of {fleetSize}</text>
       </box>
-      <text fg={palette.muted}>{project || "…"}</text>
+      <box flexDirection="row" gap={1}>
+        <text fg={palette.active}>{provider}</text>
+        <text fg={palette.border}>{glyph.sep}</text>
+        <text fg={palette.muted}>{project || "…"}</text>
+      </box>
       <box flexDirection="row" gap={1}>
         <text fg={palette.active}>{clockUTC(now)} UTC</text>
         <text fg={palette.border}>{glyph.sep}</text>
