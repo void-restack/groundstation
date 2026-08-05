@@ -8,7 +8,7 @@ import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/provi
 import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
 import { createArgs } from "../src/adapters/gcloud"
 import { zoneLocation } from "../src/lib/geo"
-import { parseLabels } from "../src/lib/parse"
+import { parseEnv, parseLabels, parsePackages, parseSwapMb, validHostname } from "../src/lib/parse"
 import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
 import { getProvisioner, registeredProvisioners } from "../src/provisioners/registry"
@@ -418,6 +418,37 @@ test("parseLabels reads k=v pairs and skips malformed tokens", () => {
   expect(parseLabels("noeq bad= =noval keep=me")).toEqual({ "bad": "", keep: "me" })
   // a value may contain an '=' (only the first splits)
   expect(parseLabels("url=a=b")).toEqual({ url: "a=b" })
+})
+
+test("parseEnv reads KEY=value pairs like labels", () => {
+  expect(parseEnv("NODE_ENV=production PORT=8080")).toEqual({ NODE_ENV: "production", PORT: "8080" })
+  expect(parseEnv("")).toEqual({})
+})
+
+test("parsePackages splits, trims, and dedupes a whitespace list", () => {
+  expect(parsePackages("htop git jq")).toEqual(["htop", "git", "jq"])
+  expect(parsePackages("  htop   git  htop ")).toEqual(["htop", "git"])
+  expect(parsePackages("")).toEqual([])
+})
+
+test("validHostname accepts RFC1123 labels and rejects bad ones", () => {
+  expect(validHostname("web-1")).toBe(true)
+  expect(validHostname("a")).toBe(true)
+  expect(validHostname("-lead")).toBe(false)
+  expect(validHostname("trail-")).toBe(false)
+  expect(validHostname("has space")).toBe(false)
+  expect(validHostname("under_score")).toBe(false)
+  expect(validHostname("x".repeat(64))).toBe(false)
+})
+
+test("parseSwapMb converts G/M suffixes to whole megabytes, rejects junk", () => {
+  expect(parseSwapMb("2G")).toBe(2048)
+  expect(parseSwapMb("512M")).toBe(512)
+  expect(parseSwapMb("2048")).toBe(2048)
+  expect(parseSwapMb("1.5G")).toBe(1536)
+  expect(parseSwapMb("0")).toBeNull()
+  expect(parseSwapMb("big")).toBeNull()
+  expect(parseSwapMb("")).toBeNull()
 })
 
 test("createArgs emits labels, service account, and scopes when set", () => {

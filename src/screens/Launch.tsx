@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { listZones } from "../adapters/gcloud"
 import { config, detectPublicKeys } from "../config"
 import { zoneLocation } from "../lib/geo"
-import { parseLabels } from "../lib/parse"
+import { parseEnv, parseLabels, parsePackages, parseSwapMb, validHostname } from "../lib/parse"
 import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
 import { SearchModal, type SearchItem } from "../components/SearchModal"
@@ -23,7 +23,7 @@ import { glyph, palette } from "../theme"
 type Stage = "form" | "review" | "creating"
 type Picker =
   | "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
-  | "serviceaccount" | "scopes" | "sudo" | "sshkey"
+  | "serviceaccount" | "scopes" | "timezone" | "harden" | "sudo" | "sshkey"
 type Section = "BASICS" | "SETUP" | "ACCESS"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
@@ -61,6 +61,30 @@ const SCOPE_PRESETS: SearchItem<string>[] = [
   { value: "no-scopes", label: "locked down (no scopes)", hint: "no Google API access via the SA token" },
 ]
 const DEFAULT_SA: SearchItem<string> = { value: "", label: "default (project SA)" }
+const HARDEN_OPTS: { value: boolean; label: string }[] = [
+  { value: false, label: "no (leave sshd defaults)" },
+  { value: true, label: "yes (disable password auth + root login)" },
+]
+// Curated IANA zones; "" leaves the image default. Enough coverage for common regions.
+const TIMEZONES: SearchItem<string>[] = [
+  { value: "", label: "system default (image default)" },
+  { value: "UTC", label: "UTC", hint: "Coordinated Universal Time" },
+  { value: "America/New_York", label: "America/New_York", hint: "US Eastern" },
+  { value: "America/Chicago", label: "America/Chicago", hint: "US Central" },
+  { value: "America/Denver", label: "America/Denver", hint: "US Mountain" },
+  { value: "America/Los_Angeles", label: "America/Los_Angeles", hint: "US Pacific" },
+  { value: "America/Sao_Paulo", label: "America/Sao_Paulo", hint: "Brazil" },
+  { value: "Europe/London", label: "Europe/London", hint: "UK" },
+  { value: "Europe/Paris", label: "Europe/Paris", hint: "Central Europe" },
+  { value: "Europe/Berlin", label: "Europe/Berlin", hint: "Central Europe" },
+  { value: "Europe/Amsterdam", label: "Europe/Amsterdam", hint: "Central Europe" },
+  { value: "Asia/Dubai", label: "Asia/Dubai", hint: "Gulf" },
+  { value: "Asia/Kolkata", label: "Asia/Kolkata", hint: "India" },
+  { value: "Asia/Singapore", label: "Asia/Singapore", hint: "Singapore" },
+  { value: "Asia/Shanghai", label: "Asia/Shanghai", hint: "China" },
+  { value: "Asia/Tokyo", label: "Asia/Tokyo", hint: "Japan" },
+  { value: "Australia/Sydney", label: "Australia/Sydney", hint: "AU Eastern" },
+]
 
 const FALLBACK_ZONES = [
   "us-central1-a", "us-central1-b", "us-central1-c", "us-east1-b", "us-west1-a",
@@ -176,6 +200,12 @@ export function Launch() {
   const [scopes, setScopes] = useState("")
   const [saItems, setSaItems] = useState<SearchItem<string>[]>([DEFAULT_SA])
   const [saLoading, setSaLoading] = useState(true)
+  const [packagesInput, setPackagesInput] = useState("")
+  const [envInput, setEnvInput] = useState("")
+  const [hostname, setHostname] = useState("")
+  const [timezone, setTimezone] = useState("")
+  const [swapInput, setSwapInput] = useState("")
+  const [hardenSsh, setHardenSsh] = useState(false)
   const [user, setUser] = useState("")
   const [sudo, setSudo] = useState(true)
   const pubKeyItems = useMemo<SearchItem<string>[]>(
@@ -192,6 +222,13 @@ export function Launch() {
   const labels = parseLabels(labelsInput)
   const scopeLabel = SCOPE_PRESETS.find((p) => p.value === scopes)?.label ?? scopes
   const saLabel = saItems.find((s) => s.value === serviceAccount)?.label ?? (serviceAccount || DEFAULT_SA.label)
+  const packages = parsePackages(packagesInput)
+  const env = parseEnv(envInput)
+  const swapMb = parseSwapMb(swapInput)
+  const swapInvalid = Boolean(swapInput.trim()) && swapMb === null
+  const hostnameValid = !hostname.trim() || validHostname(hostname.trim())
+  const timezoneLabel = TIMEZONES.find((t) => t.value === timezone)?.label ?? (timezone || "system default")
+  const hardenLabel = hardenSsh ? "yes (disable password + root login)" : "no"
 
   // A custom SA with the default (limited) scopes silently 403s on IAM-granted
   // APIs; the recommended pattern is a custom SA + cloud-platform. Nudge there.
@@ -346,6 +383,12 @@ export function Launch() {
     labels: Object.keys(labels).length ? labels : undefined,
     serviceAccount: serviceAccount || undefined,
     scopes: scopes || undefined,
+    env: Object.keys(env).length ? env : undefined,
+    packages: packages.length ? packages : undefined,
+    hostname: hostname.trim() || undefined,
+    timezone: timezone || undefined,
+    swapMb: swapMb ?? undefined,
+    hardenSsh: hardenSsh || undefined,
     provisioning,
     userSetup:
       user.trim() && validUsername(user.trim()) && sshKeyPath
@@ -399,6 +442,40 @@ export function Launch() {
     },
 
     { id: "provision", section: "SETUP", picker: "provision", node: (f) => <PickerField label="PROVISION" value={provisionLabel} focused={f} /> },
+    {
+      id: "packages", section: "SETUP", picker: null,
+      node: (f) => (
+        <Field label="PACKAGES" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="optional — extra apt packages e.g. htop git jq" onInput={setPackagesInput} />
+        </Field>
+      ),
+    },
+    {
+      id: "env", section: "SETUP", picker: null,
+      node: (f) => (
+        <Field label="ENV" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="optional — KEY=value pairs e.g. NODE_ENV=production" onInput={setEnvInput} />
+        </Field>
+      ),
+    },
+    {
+      id: "hostname", section: "SETUP", picker: null,
+      node: (f) => (
+        <Field label="HOSTNAME" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="optional — set the system hostname" onInput={setHostname} />
+        </Field>
+      ),
+    },
+    { id: "timezone", section: "SETUP", picker: "timezone", node: (f) => <PickerField label="TIMEZONE" value={timezoneLabel} focused={f} /> },
+    {
+      id: "swap", section: "SETUP", picker: null,
+      node: (f) => (
+        <Field label="SWAP" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="optional — swapfile size e.g. 2G or 512M" onInput={setSwapInput} />
+        </Field>
+      ),
+    },
+    { id: "harden", section: "SETUP", picker: "harden", node: (f) => <PickerField label="HARDEN" value={hardenLabel} focused={f} /> },
 
     { id: "serviceaccount", section: "ACCESS", picker: "serviceaccount", node: (f) => <PickerField label="SVC ACCT" value={saLabel} focused={f} busy={saLoading} /> },
     { id: "scopes", section: "ACCESS", picker: "scopes", node: (f) => <PickerField label="SCOPES" value={scopeLabel} focused={f} /> },
@@ -433,7 +510,7 @@ export function Launch() {
   }
 
   const proceed = () => {
-    if (!name.trim() || !userValid || userNeedsKey) return
+    if (!name.trim() || !userValid || userNeedsKey || !hostnameValid || swapInvalid) return
     setStage("review")
   }
 
@@ -476,6 +553,10 @@ export function Launch() {
     <text fg={palette.border}>{glyph.sep} user must be a valid linux name</text>
   ) : userNeedsKey ? (
     <text fg={palette.border}>{glyph.sep} pick an ssh key for the user</text>
+  ) : !hostnameValid ? (
+    <text fg={palette.border}>{glyph.sep} hostname must be a valid RFC1123 label</text>
+  ) : swapInvalid ? (
+    <text fg={palette.border}>{glyph.sep} swap must look like 2G or 512M</text>
   ) : null
 
   const rows: ReactNode[] = []
@@ -542,6 +623,24 @@ export function Launch() {
             ) : null}
             <text fg={palette.muted}>svc acct {glyph.arrowRight} <span fg={palette.text}>{saLabel}</span> {glyph.sep} scopes {scopeLabel}</text>
             <text fg={palette.muted}>provision {glyph.arrowRight} <span fg={palette.text}>{provisionLabel}</span></text>
+            {packages.length ? (
+              <text fg={palette.muted}>packages {glyph.arrowRight} <span fg={palette.text}>{packages.join(" ")}</span></text>
+            ) : null}
+            {Object.keys(env).length ? (
+              <text fg={palette.muted}>env {glyph.arrowRight} <span fg={palette.text}>{Object.entries(env).map(([k, v]) => `${k}=${v}`).join(" ")}</span></text>
+            ) : null}
+            {hostname.trim() ? (
+              <text fg={palette.muted}>hostname {glyph.arrowRight} <span fg={palette.text}>{hostname.trim()}</span></text>
+            ) : null}
+            {timezone ? (
+              <text fg={palette.muted}>timezone {glyph.arrowRight} <span fg={palette.text}>{timezoneLabel}</span></text>
+            ) : null}
+            {swapMb ? (
+              <text fg={palette.muted}>swap {glyph.arrowRight} <span fg={palette.text}>{swapMb} MB</span></text>
+            ) : null}
+            {hardenSsh ? (
+              <text fg={palette.muted}>harden ssh {glyph.arrowRight} <span fg={palette.text}>yes</span></text>
+            ) : null}
             {spec.userSetup ? (
               <text fg={palette.muted}>user {glyph.arrowRight} <span fg={palette.text}>{spec.userSetup.username}</span> {sudo ? "(sudo)" : "(no sudo)"} {glyph.sep} key {sshKeyLabel}</text>
             ) : null}
@@ -620,6 +719,22 @@ export function Launch() {
           placeholder="default · full · read-only · locked…"
           items={SCOPE_PRESETS}
           onPick={setScopes}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "timezone" ? (
+        <SearchModal<string>
+          title="SELECT TIMEZONE"
+          placeholder="filter — UTC, region, or city…"
+          items={TIMEZONES}
+          onPick={setTimezone}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "harden" ? (
+        <SearchModal<boolean>
+          title="HARDEN SSH"
+          placeholder="disable password auth + root login…"
+          items={HARDEN_OPTS}
+          onPick={setHardenSsh}
           onClose={() => setPicker(null)}
         />
       ) : picker === "sudo" ? (
