@@ -5,3 +5,4 @@ gnd-*
 .DS_Store
 dist/
 docs/
+.scratch/
