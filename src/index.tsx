@@ -13,10 +13,10 @@ if (args.includes("--version") || args.includes("-v")) {
 } else if (args.includes("--help") || args.includes("-h")) {
   console.log(
     [
-      "GROUNDSTATION — mission control for a cloud fleet",
+      "GROUNDSTATION — a terminal dashboard for your cloud fleet",
       "",
       "Usage:",
-      "  gnd            launch the dashboard (needs a gcloud login)",
+      "  gnd            open the dashboard (needs a gcloud login)",
       "  gnd serve      serve the dashboard over SSH",
       "  gnd --version  print the version",
       "  gnd --help     show this help",
@@ -35,7 +35,7 @@ if (args.includes("--version") || args.includes("-v")) {
     const renderer = await createCliRenderer({
       exitOnCtrlC: true,
       targetFps: 30,
-      backgroundColor: palette.void,
+      backgroundColor: palette.bg,
     })
     createRoot(renderer).render(<App />)
   }

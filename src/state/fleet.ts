@@ -67,14 +67,14 @@ function diffAndLog(instances: Instance[]) {
   for (const s of instances) {
     const prev = prevState.get(s.id)
     if (!prev) {
-      logEvent({ server: s.name, level: "nominal", message: "vessel appeared" })
+      logEvent({ server: s.name, level: "ok", message: "instance appeared" })
     } else if (prev.state !== s.state) {
-      const level = s.state === "running" ? "nominal" : s.state === "terminated" ? "flare" : "caution"
+      const level = s.state === "running" ? "ok" : s.state === "terminated" ? "error" : "warn"
       logEvent({ server: s.name, level, message: `${prev.state} → ${s.state}` })
     }
   }
   for (const [id, prev] of prevState) {
-    if (!next.has(id)) logEvent({ server: prev.name, level: "caution", message: "vessel gone" })
+    if (!next.has(id)) logEvent({ server: prev.name, level: "warn", message: "instance gone" })
   }
   prevState = next
 }

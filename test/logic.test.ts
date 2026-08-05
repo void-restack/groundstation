@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { TOOLS, detectTool, installCommand } from "../src/adapters/tools"
 import { config, expandHome, resolveConfig, type PersistedConfig } from "../src/config"
 import { summarizeError } from "../src/lib/errors"
-import { duration, elapsed, flightCode, regionOf } from "../src/lib/format"
+import { duration, elapsed, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
 import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/providers/registry"
 import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
@@ -46,12 +46,6 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void) {
   }
 }
 
-test("flightCode maps zones to callsigns", () => {
-  expect(flightCode("us-central1-a")).toBe("USC1·A")
-  expect(flightCode("asia-south1-b")).toBe("ASS1·B")
-  expect(flightCode("europe-west4-c")).toBe("EUW4·C")
-})
-
 test("regionOf strips the cell", () => {
   expect(regionOf("us-central1-a")).toBe("us-central1")
 })
@@ -62,7 +56,7 @@ test("duration formats human units", () => {
   expect(duration(90000)).toBe("1m30s")
 })
 
-test("elapsed formats mission time", () => {
+test("elapsed formats duration", () => {
   const base = new Date(0)
   expect(elapsed(base, 3661_000)).toBe("01:01:01")
   expect(elapsed(base, 90000_000)).toBe("1d 01:00")
@@ -152,11 +146,10 @@ test("installCommand is a package-manager command or null (never a curl|bash)", 
 function fakeServer(over: Partial<Server> = {}): Server {
   return {
     id: "1",
-    name: "vessel-1",
+    name: "vm-1",
     status: "RUNNING",
     zone: "us-central1-a",
     region: "us-central1",
-    flightCode: "USC1·A",
     machineType: "e2-micro",
     externalIp: "203.0.113.7",
     internalIp: "10.0.0.2",
@@ -209,14 +202,14 @@ test("confirm resolves via resolveConfirm and a new request cancels the pending 
 
 test("runOp reports success, captures thrown errors as failure", async () => {
   const seen: string[] = []
-  const ok = await runOp("stop · vessel-1", async (log) => {
+  const ok = await runOp("stop · vm-1", async (log) => {
     log("stopping…")
     seen.push("ran")
   })
   expect(ok).toBe(true)
   expect(seen).toEqual(["ran"])
 
-  const bad = await runOp("delete · vessel-1", async () => {
+  const bad = await runOp("delete · vm-1", async () => {
     throw new Error("boom")
   })
   expect(bad).toBe(false)
@@ -340,7 +333,7 @@ test("createArgs uses custom cpu/memory instead of a machine type when set", () 
 test("lifecycleArgs builds a zoned, --quiet gcloud command (no TTY prompt)", () => {
   const inst = serverToInstance(fakeServer(), "p")
   expect(lifecycleArgs("stop", inst)).toEqual([
-    "gcloud", "compute", "instances", "stop", "vessel-1", "--zone=us-central1-a", "--quiet",
+    "gcloud", "compute", "instances", "stop", "vm-1", "--zone=us-central1-a", "--quiet",
   ])
   // --quiet is the correctness catch: delete would otherwise hang on a stdin prompt
   expect(lifecycleArgs("delete", inst)).toContain("--quiet")
@@ -350,7 +343,7 @@ test("lifecycleArgs builds a zoned, --quiet gcloud command (no TTY prompt)", () 
   expect(lifecycleArgs("start", zoneless).some((a) => a.startsWith("--zone"))).toBe(false)
 })
 
-test("GCP sshTarget resolves a reachable vessel and rejects one without an IP", () => {
+test("GCP sshTarget resolves a reachable instance and rejects one without an IP", () => {
   const gcp = getProvider()
   const target = gcp.sshTarget(serverToInstance(fakeServer(), "p"))
   expect(target).toEqual({ host: "203.0.113.7", user: config.deployUser, identityFile: config.sshKey })

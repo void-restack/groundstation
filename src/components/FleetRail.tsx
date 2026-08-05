@@ -11,17 +11,17 @@ export function FleetRail({
 }) {
   return (
     <box
-      width={40}
+      width={46}
       border
       borderStyle="rounded"
-      borderColor={palette.downlink}
+      borderColor={palette.active}
       title="² FLEET"
       titleAlignment="left"
-      titleColor={palette.downlink}
+      titleColor={palette.active}
       flexDirection="column"
     >
       <box flexDirection="row" paddingLeft={3}>
-        <text fg={palette.static}>{"NAME".padEnd(17)}{"ZONE".padEnd(8)}TYPE</text>
+        <text fg={palette.muted}>{"NAME".padEnd(15)}{"ZONE".padEnd(15)}TYPE</text>
       </box>
       <scrollbox flexGrow={1}>
         <box flexDirection="column">

@@ -1,24 +1,3 @@
-const GEO: Record<string, string> = {
-  us: "US",
-  europe: "EU",
-  asia: "AS",
-  australia: "AU",
-  southamerica: "SA",
-  northamerica: "NA",
-  me: "ME",
-  africa: "AF",
-}
-
-export function flightCode(zone: string): string {
-  const parts = zone.split("-")
-  if (parts.length < 3) return zone.toUpperCase()
-  const [geo, locus, cell] = parts as [string, string, string]
-  const geoCode = GEO[geo] ?? geo.slice(0, 2).toUpperCase()
-  const locLetter = locus.charAt(0).toUpperCase()
-  const locNum = locus.replace(/\D/g, "")
-  return `${geoCode}${locLetter}${locNum}·${cell.toUpperCase()}`
-}
-
 export function regionOf(zone: string): string {
   const i = zone.lastIndexOf("-")
   return i === -1 ? zone : zone.slice(0, i)

@@ -8,7 +8,7 @@ import { glyph, palette } from "../theme"
  */
 export function Spinner({
   label,
-  color = palette.downlink,
+  color = palette.active,
 }: {
   label?: string
   color?: string

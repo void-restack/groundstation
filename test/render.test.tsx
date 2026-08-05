@@ -24,7 +24,6 @@ const server: Server = {
   status: "RUNNING",
   zone: "us-central1-a",
   region: "us-central1",
-  flightCode: "USC1·A",
   machineType: "e2-micro",
   externalIp: "203.0.113.21",
   internalIp: "10.128.0.14",
@@ -33,8 +32,8 @@ const server: Server = {
 }
 const instance = serverToInstance(server, "demo-project")
 
-test("FleetCard shows the vessel name and machine type", async () => {
-  const setup = await testRender(<FleetCard instance={instance} selected />, { width: 34, height: 4 })
+test("FleetCard shows the instance name and machine type", async () => {
+  const setup = await testRender(<FleetCard instance={instance} selected />, { width: 48, height: 4 })
   try {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
@@ -45,7 +44,7 @@ test("FleetCard shows the vessel name and machine type", async () => {
   }
 })
 
-test("Glass renders telemetry for the selected vessel", async () => {
+test("Glass renders details for the selected instance", async () => {
   const setup = await testRender(<Glass instance={instance} />, { width: 50, height: 16 })
   try {
     await setup.renderOnce()
@@ -68,7 +67,7 @@ test("actionsFor gates lifecycle actions by instance state", () => {
   expect(stopped).not.toContain("stop")
 })
 
-test("ActionMenu lists the state-valid actions for a running vessel", async () => {
+test("ActionMenu lists the state-valid actions for a running instance", async () => {
   const setup = await testRender(<ActionMenu instance={instance} onClose={() => {}} />, {
     width: 60,
     height: 20,
@@ -92,7 +91,7 @@ test("describeLines renders the normalized instance fields (state + raw)", () =>
   expect(lines.some((l) => l.startsWith("SIZE") && l.includes("e2-micro"))).toBe(true)
 })
 
-test("DetailDialog renders the vessel detail read-out", async () => {
+test("DetailDialog renders the instance detail read-out", async () => {
   showDetail("DESCRIBE · lab", describeLines(instance))
   const setup = await testRender(<DetailDialog />, { width: 60, height: 20 })
   try {
@@ -179,7 +178,7 @@ test("SearchModal renders its title and the filterable items", async () => {
   }
 })
 
-test("ConfigForm renders the mission-config fields", async () => {
+test("ConfigForm renders the config fields", async () => {
   const setup = await testRender(<ConfigForm onSave={() => {}} onCancel={() => {}} />, {
     width: 70,
     height: 18,
@@ -200,7 +199,7 @@ test("ToolsModal lists the external dependencies with status", async () => {
   try {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
-    expect(frame).toContain("MISSION DEPENDENCIES")
+    expect(frame).toContain("DEPENDENCIES")
     expect(frame).toContain("gcloud")
     expect(frame).toContain("ssh")
   } finally {
@@ -210,7 +209,7 @@ test("ToolsModal lists the external dependencies with status", async () => {
 
 test("LogView renders streamed lines pinned to the bottom", async () => {
   const setup = await testRender(
-    <LogView lines={["awaiting boot", "provisioning host"]} title="DOWNLINK" height={6} />,
+    <LogView lines={["awaiting boot", "provisioning host"]} title="OUTPUT" height={6} />,
     { width: 40, height: 8 },
   )
   try {

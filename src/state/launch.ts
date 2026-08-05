@@ -124,13 +124,13 @@ export async function beginLaunch(spec: LaunchSpec) {
   if (running) return
   running = true
   launch.set({ ...initial, phase: "running", target: spec.name })
-  logEvent({ server: spec.name, level: "info", message: `launch sequence: ${spec.name}` })
+  logEvent({ server: spec.name, level: "info", message: `creating ${spec.name}` })
 
   const profile = spec.provisioning
   const provisioner = getProvisioner(profile.kind)
 
   try {
-    pushStep({ name: "provision vessel", role: "gcloud", state: "running", durationMs: null, detail: null })
+    pushStep({ name: "create instance", role: "gcloud", state: "running", durationMs: null, detail: null })
     const extra: Record<string, string> = {}
     if (provisioner.injectsAtCreate && provisioner.buildCreatePayload) {
       const { key, value } = provisioner.buildCreatePayload(profile)
@@ -153,24 +153,24 @@ export async function beginLaunch(spec: LaunchSpec) {
     })
     resolveLast("changed")
 
-    pushStep({ name: "await boot + network", role: "gcloud", state: "running", durationMs: null, detail: null })
+    pushStep({ name: "wait for boot + network", role: "gcloud", state: "running", durationMs: null, detail: null })
     const up = await settle(spec.name)
     resolveLast(up ? "ok" : "failed")
-    if (!up) throw new Error("vessel did not reach RUNNING with an external IP")
+    if (!up) throw new Error("instance did not reach RUNNING with an external IP")
 
     const inst = fleetSnapshot().find((s) => s.name === spec.name)
 
     if (provisioner.injectsAtCreate) {
       // injected at create, runs at first boot — watch the serial console for it
-      pushStep({ name: "boot config (first boot)", role: "provision", state: "running", durationMs: null, detail: null })
+      pushStep({ name: "run setup (first boot)", role: "provision", state: "running", durationMs: null, detail: null })
       const done = inst ? await waitBootConfig(inst) : false
-      resolveLast(done ? "ok" : "changed", done ? undefined : "still running — watch the serial console")
+      resolveLast(done ? "ok" : "changed", done ? undefined : "still running — watch the output")
       launch.set((s) => ({ ...s, phase: "succeeded" }))
       cues.success()
       logEvent({
         server: spec.name,
-        level: "nominal",
-        message: done ? `${spec.name} in orbit — provisioned` : `${spec.name} in orbit — provisioning`,
+        level: "ok",
+        message: done ? `${spec.name} ready — setup done` : `${spec.name} running — setup still going`,
       })
       return
     }
@@ -179,11 +179,11 @@ export async function beginLaunch(spec: LaunchSpec) {
       // none → a bare box is the deliverable
       launch.set((s) => ({ ...s, phase: "succeeded" }))
       cues.success()
-      logEvent({ server: spec.name, level: "nominal", message: `${spec.name} in orbit` })
+      logEvent({ server: spec.name, level: "ok", message: `${spec.name} ready` })
       return
     }
 
-    if (!inst) throw new Error("vessel vanished before provisioning")
+    if (!inst) throw new Error("instance vanished before setup")
     const ctx = { instance: inst, profile, provider: getProvider() }
 
     const tasks = provisioner.plan ? await provisioner.plan(ctx).catch(() => []) : []
@@ -195,14 +195,14 @@ export async function beginLaunch(spec: LaunchSpec) {
     else cues.fail()
     logEvent({
       server: spec.name,
-      level: ok ? "nominal" : "flare",
-      message: ok ? `${spec.name} in orbit` : `${spec.name} provisioning failed`,
+      level: ok ? "ok" : "error",
+      message: ok ? `${spec.name} ready` : `${spec.name} setup failed`,
     })
   } catch (err) {
     resolveLast("failed", err instanceof Error ? err.message : String(err))
     launch.set((s) => ({ ...s, phase: "failed" }))
     cues.fail()
-    logEvent({ server: spec.name, level: "flare", message: `launch aborted: ${spec.name}` })
+    logEvent({ server: spec.name, level: "error", message: `create failed: ${spec.name}` })
   } finally {
     await refreshFleet()
     running = false

@@ -42,7 +42,6 @@ export function serverToInstance(s: Server, account: string): Instance {
     rawState: s.status,
     region: s.region,
     zone: s.zone,
-    flightCode: s.flightCode,
     size: s.machineType,
     image: null,
     externalIp: s.externalIp,
@@ -117,7 +116,7 @@ export const gcp: Provider = {
   async describe(id: string): Promise<Instance> {
     const [servers, account] = await Promise.all([fetchFleet(), currentProject().catch(() => "")])
     const found = servers.find((s) => s.id === id || s.name === id)
-    if (!found) throw new Error(`no such vessel: ${id}`)
+    if (!found) throw new Error(`no such instance: ${id}`)
     return serverToInstance(found, account)
   },
 

@@ -14,12 +14,12 @@ export function DetailDialog() {
     <Dialog
       title={detail.title}
       onClose={dismissDetail}
-      footer={<text fg={palette.beacon}>[enter/esc] close</text>}
+      footer={<text fg={palette.accent}>[enter/esc] close</text>}
       width="60%"
     >
       <scrollbox height={14} paddingLeft={1} paddingRight={1}>
         {detail.lines.map((line, i) => (
-          <text key={i} fg={palette.static}>
+          <text key={i} fg={palette.muted}>
             {line}
           </text>
         ))}

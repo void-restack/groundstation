@@ -18,7 +18,6 @@ export interface Server {
   status: ServerStatus
   zone: string
   region: string
-  flightCode: string
   machineType: string
   externalIp: string | null
   internalIp: string | null
@@ -46,7 +45,6 @@ export interface Instance {
   rawState: string
   region: string
   zone: string | null
-  flightCode: string
   size: string
   image: string | null
   externalIp: string | null
@@ -61,7 +59,7 @@ export interface FleetEvent {
   id: string
   at: Date
   server: string | null
-  level: "info" | "nominal" | "caution" | "flare"
+  level: "info" | "ok" | "warn" | "error"
   message: string
 }
 

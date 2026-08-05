@@ -17,7 +17,7 @@ import { beginLaunch, launchPhase, resetLaunch, useLaunch, type LaunchSpec } fro
 import { setScreen } from "../state/ui"
 import { glyph, palette } from "../theme"
 
-type Stage = "form" | "preflight" | "ignition"
+type Stage = "form" | "review" | "creating"
 type Picker = "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
@@ -60,15 +60,15 @@ const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1)
 function stepGlyph(step: LaunchStep, frame: number): { icon: string; color: string } {
   switch (step.state) {
     case "running":
-      return { icon: glyph.spinner[frame % glyph.spinner.length]!, color: palette.downlink }
+      return { icon: glyph.spinner[frame % glyph.spinner.length]!, color: palette.active }
     case "ok":
-      return { icon: glyph.stepDone, color: palette.nominal }
+      return { icon: glyph.stepDone, color: palette.ok }
     case "changed":
-      return { icon: glyph.stepDone, color: palette.beacon }
+      return { icon: glyph.stepDone, color: palette.accent }
     case "failed":
-      return { icon: glyph.stepDone, color: palette.flare }
+      return { icon: glyph.stepDone, color: palette.error }
     default:
-      return { icon: glyph.stepPending, color: palette.static }
+      return { icon: glyph.stepPending, color: palette.muted }
   }
 }
 
@@ -78,42 +78,40 @@ function StepRow({ step, frame }: { step: LaunchStep; frame: number }) {
   return (
     <box flexDirection="row" gap={1}>
       <text fg={color}>{icon}</text>
-      <text fg={step.state === "running" ? palette.starlight : palette.static}>{label}</text>
+      <text fg={step.state === "running" ? palette.text : palette.muted}>{label}</text>
       {step.durationMs !== null && step.state !== "failed" ? (
-        <text fg={palette.hairline}>{duration(step.durationMs)}</text>
+        <text fg={palette.border}>{duration(step.durationMs)}</text>
       ) : null}
-      {step.state === "failed" && step.detail ? <text fg={palette.flare}>{step.detail}</text> : null}
+      {step.state === "failed" && step.detail ? <text fg={palette.error}>{step.detail}</text> : null}
     </box>
   )
 }
 
-function Ignition({ spec }: { spec: LaunchSpec }) {
+function Creating({ spec }: { spec: LaunchSpec }) {
   const now = useClock()
-  const { phase, steps, estTotal, log } = useLaunch()
+  const { phase, steps, log } = useLaunch()
   const frame = Math.floor(now / 80)
 
   useEffect(() => {
     void beginLaunch(spec)
   }, [])
 
-  const done = steps.filter((s) => s.state !== "running" && s.state !== "pending").length
-  const remaining = Math.max(0, estTotal - done)
-  const tLabel = phase === "running" ? `T-${remaining}` : phase === "succeeded" ? "T-0 · ORBIT" : "ABORT"
-  const tColor =
-    phase === "succeeded" ? palette.nominal : phase === "failed" ? palette.flare : palette.downlink
+  const label = phase === "running" ? "working…" : phase === "succeeded" ? "done" : "failed"
+  const color =
+    phase === "succeeded" ? palette.ok : phase === "failed" ? palette.error : palette.active
 
   return (
     <box flexDirection="column" flexGrow={1} gap={1}>
       <box flexDirection="row" gap={1}>
-        {phase === "running" ? <Spinner color={tColor} /> : <text fg={tColor}>{glyph.stepDone}</text>}
-        <text fg={tColor}>IGNITION</text>
-        <text fg={palette.hairline}>{glyph.sep}</text>
-        <text fg={tColor}>{tLabel}</text>
-        <text fg={palette.static}>{glyph.sep} {spec.name} → {spec.zone}</text>
+        {phase === "running" ? <Spinner color={color} /> : <text fg={color}>{glyph.stepDone}</text>}
+        <text fg={color}>CREATING</text>
+        <text fg={palette.border}>{glyph.sep}</text>
+        <text fg={color}>{label}</text>
+        <text fg={palette.muted}>{glyph.sep} {spec.name} → {spec.zone}</text>
       </box>
 
       <box flexDirection="row" flexGrow={1} gap={1}>
-        <box width={44} border borderStyle="rounded" borderColor={palette.hairline} title=" CHECKLIST ">
+        <box width={44} border borderStyle="rounded" borderColor={palette.border} title=" STEPS ">
           <scrollbox flexGrow={1} stickyScroll stickyStart="bottom" paddingLeft={1} paddingRight={1}>
             {steps.map((s, i) => (
               <StepRow key={i} step={s} frame={frame} />
@@ -121,13 +119,13 @@ function Ignition({ spec }: { spec: LaunchSpec }) {
           </scrollbox>
         </box>
 
-        <LogView lines={log} title="DOWNLINK" />
+        <LogView lines={log} title="OUTPUT" />
       </box>
 
       {phase === "succeeded" || phase === "failed" ? (
-        <text fg={palette.beacon}>[Enter] return to board</text>
+        <text fg={palette.accent}>[Enter] back to the board</text>
       ) : (
-        <text fg={palette.static}>running… launch is unattended, sit back</text>
+        <text fg={palette.muted}>running… you can leave this; it finishes on its own</text>
       )}
     </box>
   )
@@ -284,7 +282,7 @@ export function Launch() {
   }
 
   const proceed = () => {
-    if (name.trim()) setStage("preflight")
+    if (name.trim()) setStage("review")
   }
 
   const openFocusedPicker = () => {
@@ -301,33 +299,33 @@ export function Launch() {
   useKeyboard((key) => {
     if (picker) return // the SearchModal owns the keyboard while open
 
-    if (stage === "ignition") {
+    if (stage === "creating") {
       const phase = launchPhase()
       if (key.name === "return" && (phase === "succeeded" || phase === "failed")) back()
       return
     }
-    if (key.name === "escape") return stage === "preflight" ? setStage("form") : back()
+    if (key.name === "escape") return stage === "review" ? setStage("form") : back()
     if (stage === "form") {
       if (key.name === "tab" || key.name === "down") return setFocus((f) => (f + 1) % FIELD_COUNT)
       if (key.name === "up") return setFocus((f) => (f - 1 + FIELD_COUNT) % FIELD_COUNT)
       if (key.name === "return") return openFocusedPicker()
       return
     }
-    if (stage === "preflight" && key.name === "return") return setStage("ignition")
+    if (stage === "review" && key.name === "return") return setStage("creating")
   })
 
-  if (stage === "ignition") {
+  if (stage === "creating") {
     return (
-      <box flexDirection="column" width="100%" height="100%" padding={1} backgroundColor={palette.void}>
-        <Ignition spec={buildSpec()} />
+      <box flexDirection="column" width="100%" height="100%" padding={1} backgroundColor={palette.bg}>
+        <Creating spec={buildSpec()} />
       </box>
     )
   }
 
   const spec = buildSpec()
   return (
-    <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.void}>
-      <text fg={palette.beacon}>LAUNCH SEQUENCE {glyph.sep} {stage === "form" ? "FLIGHT PLAN" : "PRE-FLIGHT"}</text>
+    <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.bg}>
+      <text fg={palette.accent}>NEW INSTANCE {glyph.sep} {stage === "form" ? "DETAILS" : "REVIEW"}</text>
 
       {stage === "form" ? (
         <box flexDirection="column" gap={1} marginTop={1}>
@@ -349,35 +347,35 @@ export function Launch() {
           <PickerField label="PROVISION" value={provisionLabel} focused={focus === 9} />
 
           <box flexDirection="row" gap={1} marginTop={1}>
-            <text fg={focus === 10 ? palette.nominal : palette.static}>
-              {focus === 10 ? glyph.arrowRight : " "} REVIEW & LAUNCH
+            <text fg={focus === 10 ? palette.ok : palette.muted}>
+              {focus === 10 ? glyph.arrowRight : " "} REVIEW & CREATE
             </text>
-            {!name.trim() ? <text fg={palette.hairline}>{glyph.sep} name required</text> : null}
+            {!name.trim() ? <text fg={palette.border}>{glyph.sep} name required</text> : null}
           </box>
 
-          <text fg={palette.static} marginTop={1}>
-            ↑↓/tab move {glyph.sep} enter {glyph.search} search / continue {glyph.sep} esc abort
+          <text fg={palette.muted} marginTop={1}>
+            ↑↓/tab move {glyph.sep} enter {glyph.search} search / continue {glyph.sep} esc back
           </text>
         </box>
       ) : (
         <box
           border
           borderStyle="rounded"
-          borderColor={palette.downlink}
-          title=" PRE-FLIGHT "
+          borderColor={palette.active}
+          title=" REVIEW "
           padding={1}
           flexDirection="column"
           gap={1}
           marginTop={1}
         >
-          <text fg={palette.static}>name {glyph.arrowRight} <span fg={palette.starlight}>{spec.name}</span></text>
-          <text fg={palette.static}>zone {glyph.arrowRight} <span fg={palette.starlight}>{spec.zone}</span></text>
-          <text fg={palette.static}>machine {glyph.arrowRight} <span fg={palette.starlight}>{cx ? `custom ${cx.cpu} vCPU / ${cx.memGb} GB` : spec.machineType}</span></text>
-          <text fg={palette.static}>image {glyph.arrowRight} <span fg={palette.starlight}>{spec.imageFamily}</span> ({spec.imageProject})</text>
-          <text fg={palette.static}>disk {glyph.arrowRight} <span fg={palette.starlight}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
-          <text fg={palette.static}>firewall {glyph.arrowRight} <span fg={palette.starlight}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>
-          <text fg={palette.static}>provision {glyph.arrowRight} <span fg={palette.starlight}>{provisionLabel}</span></text>
-          <text fg={palette.beacon} marginTop={1}>[Enter] IGNITION {glyph.sep} [esc] revise</text>
+          <text fg={palette.muted}>name {glyph.arrowRight} <span fg={palette.text}>{spec.name}</span></text>
+          <text fg={palette.muted}>zone {glyph.arrowRight} <span fg={palette.text}>{spec.zone}</span></text>
+          <text fg={palette.muted}>machine {glyph.arrowRight} <span fg={palette.text}>{cx ? `custom ${cx.cpu} vCPU / ${cx.memGb} GB` : spec.machineType}</span></text>
+          <text fg={palette.muted}>image {glyph.arrowRight} <span fg={palette.text}>{spec.imageFamily}</span> ({spec.imageProject})</text>
+          <text fg={palette.muted}>disk {glyph.arrowRight} <span fg={palette.text}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
+          <text fg={palette.muted}>firewall {glyph.arrowRight} <span fg={palette.text}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>
+          <text fg={palette.muted}>provision {glyph.arrowRight} <span fg={palette.text}>{provisionLabel}</span></text>
+          <text fg={palette.accent} marginTop={1}>[Enter] create {glyph.sep} [esc] back</text>
         </box>
       )}
 

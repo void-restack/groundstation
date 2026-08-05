@@ -24,7 +24,7 @@ export function Meter({
       const idx = Math.min(blocks.length - 1, Math.round((filled - full) * (blocks.length - 1)))
       return { ch: blocks[idx]!, fg: color }
     }
-    return { ch: glyph.meterEmpty, fg: lerpHex(color, palette.void, 0.72) }
+    return { ch: glyph.meterEmpty, fg: lerpHex(color, palette.bg, 0.72) }
   })
 
   return (
@@ -51,9 +51,9 @@ export function MeterStat({
 }) {
   return (
     <box flexDirection="row">
-      <text fg={palette.static}>{label} </text>
+      <text fg={palette.muted}>{label} </text>
       <Meter value={value} width={width} />
-      <text fg={palette.starlight}> {caption}</text>
+      <text fg={palette.text}> {caption}</text>
     </box>
   )
 }

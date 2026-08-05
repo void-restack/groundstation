@@ -50,11 +50,11 @@ export function ToolsModal() {
 
   const cmd = installCommand(current.spec)
   const footer = (
-    <text fg={palette.static}>↑↓ select {glyph.sep} enter install {glyph.sep} esc close</text>
+    <text fg={palette.muted}>↑↓ select {glyph.sep} enter install {glyph.sep} esc close</text>
   )
 
   return (
-    <Dialog title="MISSION DEPENDENCIES" onClose={close} footer={footer} width="72%">
+    <Dialog title="DEPENDENCIES" onClose={close} footer={footer} width="72%">
       <box flexDirection="column">
         {statuses.map((s, i) => {
           const active = i === clamped
@@ -66,24 +66,24 @@ export function ToolsModal() {
               gap={1}
               backgroundColor={active ? palette.raised : undefined}
             >
-              <text fg={ok ? palette.nominal : palette.flare}>{ok ? "✓" : "✗"}</text>
-              <text fg={active ? palette.starlight : palette.static}>{s.spec.label.padEnd(9)}</text>
-              <text fg={palette.hairline}>{ok ? s.path : "not found"}</text>
+              <text fg={ok ? palette.ok : palette.error}>{ok ? "✓" : "✗"}</text>
+              <text fg={active ? palette.text : palette.muted}>{s.spec.label.padEnd(9)}</text>
+              <text fg={palette.border}>{ok ? s.path : "not found"}</text>
             </box>
           )
         })}
       </box>
 
       <box flexDirection="column" marginTop={1}>
-        <text fg={palette.static}>{current.spec.purpose}</text>
+        <text fg={palette.muted}>{current.spec.purpose}</text>
         {busy ? (
-          <Spinner color={palette.beacon} label={`installing ${current.spec.label}… (watch the terminal)`} />
+          <Spinner color={palette.accent} label={`installing ${current.spec.label}… (watch the terminal)`} />
         ) : current.path ? (
-          <text fg={palette.nominal}>installed {glyph.sep} {current.path}</text>
+          <text fg={palette.ok}>installed {glyph.sep} {current.path}</text>
         ) : cmd ? (
-          <text fg={palette.beacon}>[enter] runs: {cmd}</text>
+          <text fg={palette.accent}>[enter] runs: {cmd}</text>
         ) : (
-          <text fg={palette.caution}>no auto-installer — {current.spec.docs}</text>
+          <text fg={palette.warn}>no auto-installer — {current.spec.docs}</text>
         )}
       </box>
     </Dialog>

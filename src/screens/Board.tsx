@@ -19,13 +19,13 @@ import { palette } from "../theme"
 const HINTS = [
   { key: "↑↓", label: "select" },
   { key: "⏎", label: "actions" },
-  { key: "P", label: "rovision" },
-  { key: "S", label: "sh" },
-  { key: "O", label: "rbit" },
+  { key: "P", label: "new" },
+  { key: "S", label: "ssh" },
+  { key: "O", label: "map" },
   { key: ",", label: "settings" },
   { key: "^T", label: "tools" },
   { key: "/", label: "command" },
-  { key: "Q", label: "uit" },
+  { key: "Q", label: "quit" },
 ]
 
 export function Board() {
@@ -65,7 +65,7 @@ export function Board() {
         return setScreen("orbit")
       case "s":
         if (current) {
-          logEvent({ server: current.name, level: "info", message: `uplink → ${current.name}` })
+          logEvent({ server: current.name, level: "info", message: `ssh → ${current.name}` })
           void uplink(renderer, current).then(() => refreshFleet())
         }
         return
@@ -80,7 +80,7 @@ export function Board() {
   })
 
   return (
-    <box flexDirection="column" width="100%" height="100%" backgroundColor={palette.void}>
+    <box flexDirection="column" width="100%" height="100%" backgroundColor={palette.bg}>
       <TopBar fleetSize={instances.length} />
       <Overview instances={instances} />
       <box flexDirection="row" flexGrow={1}>
@@ -90,7 +90,7 @@ export function Board() {
       </box>
       <KeyStrip hints={HINTS} />
       {loading && instances.length === 0 ? (
-        <text fg={palette.static}> acquiring fleet…</text>
+        <text fg={palette.muted}> loading instances…</text>
       ) : null}
       {actionMenuOpen && current ? (
         <ActionMenu instance={current} onClose={() => setActionMenu(false)} />

@@ -3,10 +3,10 @@ import { clockLocal } from "../lib/format"
 import { glyph, palette } from "../theme"
 
 const LEVEL_COLOR: Record<FleetEvent["level"], string> = {
-  info: palette.static,
-  nominal: palette.nominal,
-  caution: palette.caution,
-  flare: palette.flare,
+  info: palette.muted,
+  ok: palette.ok,
+  warn: palette.warn,
+  error: palette.error,
 }
 
 export function Ticker({ events }: { events: FleetEvent[] }) {
@@ -15,21 +15,21 @@ export function Ticker({ events }: { events: FleetEvent[] }) {
       width={40}
       border
       borderStyle="rounded"
-      borderColor={palette.hairline}
+      borderColor={palette.border}
       title="⁴ TICKER"
       titleAlignment="left"
-      titleColor={palette.static}
+      titleColor={palette.muted}
       flexDirection="column"
     >
       <scrollbox flexGrow={1} paddingLeft={1} paddingRight={1}>
         {events.length === 0 ? (
-          <text fg={palette.static}>quiet skies</text>
+          <text fg={palette.muted}>no events yet</text>
         ) : (
           events.map((e) => (
             <box key={e.id} flexDirection="row" gap={1}>
-              <text fg={palette.hairline}>{clockLocal(e.at)}</text>
+              <text fg={palette.border}>{clockLocal(e.at)}</text>
               <text fg={LEVEL_COLOR[e.level]}>{glyph.bullet}</text>
-              <text fg={palette.starlight}>{e.message}</text>
+              <text fg={palette.text}>{e.message}</text>
             </box>
           ))
         )}

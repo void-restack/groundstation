@@ -7,7 +7,7 @@ import { logEvent, refreshFleet } from "./fleet"
 import { runOp } from "./oprunner"
 import { pushToast } from "./toast"
 
-export interface VesselAction {
+export interface InstanceAction {
   id: string
   label: string
   kind: "read" | "mutate" | "destroy"
@@ -31,13 +31,12 @@ export function describeLines(inst: Instance): string[] {
     `IMAGE      ${inst.image ?? "—"}`,
     `EXTERNAL   ${inst.externalIp ?? "—"}`,
     `INTERNAL   ${inst.internalIp ?? "—"}`,
-    `FLIGHT     ${inst.flightCode}`,
     `CREATED    ${inst.createdAt.toISOString()}`,
     `HARDENED   ${inst.hardened}`,
   ]
 }
 
-export const VESSEL_ACTIONS: VesselAction[] = [
+export const INSTANCE_ACTIONS: InstanceAction[] = [
   {
     id: "describe", label: "Describe", kind: "read",
     run: async (inst) => showDetail(`DESCRIBE · ${inst.name}`, describeLines(inst)),
@@ -77,16 +76,16 @@ export const VESSEL_ACTIONS: VesselAction[] = [
   },
   {
     id: "delete", label: "Delete", kind: "destroy", confirm: "typed",
-    billing: "removes vessel + boot disk (data loss)",
+    billing: "removes the instance + boot disk (data loss)",
     run: (inst) => getProvider().delete(inst),
   },
 ]
 
-export function actionsFor(inst: Instance): VesselAction[] {
-  return VESSEL_ACTIONS.filter((a) => !a.enabled || a.enabled(inst))
+export function actionsFor(inst: Instance): InstanceAction[] {
+  return INSTANCE_ACTIONS.filter((a) => !a.enabled || a.enabled(inst))
 }
 
-export async function dispatch(action: VesselAction, inst: Instance) {
+export async function dispatch(action: InstanceAction, inst: Instance) {
   if (action.kind === "read") {
     try {
       await action.run(inst)
@@ -113,7 +112,7 @@ export async function dispatch(action: VesselAction, inst: Instance) {
 
   logEvent({
     server: inst.name,
-    level: action.kind === "destroy" ? "flare" : "caution",
+    level: action.kind === "destroy" ? "error" : "warn",
     message: `${action.id} → ${inst.name}`,
   })
 
@@ -126,11 +125,11 @@ export async function dispatch(action: VesselAction, inst: Instance) {
   if (ok) {
     cues.success()
     pushToast({ title: `${action.id} ok`, message: inst.name, variant: "success" })
-    logEvent({ server: inst.name, level: "nominal", message: `${action.id} ok` })
+    logEvent({ server: inst.name, level: "ok", message: `${action.id} ok` })
   } else {
     cues.fail()
     pushToast({ title: `${action.id} failed`, message: inst.name, variant: "error" })
-    logEvent({ server: inst.name, level: "flare", message: `${action.id} failed` })
+    logEvent({ server: inst.name, level: "error", message: `${action.id} failed` })
   }
   await refreshFleet()
 }

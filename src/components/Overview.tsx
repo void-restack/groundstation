@@ -4,7 +4,7 @@ import { Panel } from "./Panel"
 
 export function Overview({ instances }: { instances: Instance[] }) {
   const total = instances.length || 1
-  const nominal = instances.filter((s) => s.state === "running").length
+  const running = instances.filter((s) => s.state === "running").length
   const hardened = instances.filter((s) => s.hardened === "hardened").length
 
   const byRegion = new Map<string, number>()
@@ -12,9 +12,9 @@ export function Overview({ instances }: { instances: Instance[] }) {
   const regions = [...byRegion.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
 
   return (
-    <Panel index={1} title="OVERVIEW" height={3} right={`${instances.length} vessels`}>
+    <Panel index={1} title="OVERVIEW" height={3} right={`${instances.length} instances`}>
       <box flexDirection="row" gap={4} paddingLeft={1} paddingRight={1}>
-        <MeterStat label="NOMINAL" value={nominal / total} caption={`${nominal}/${instances.length}`} />
+        <MeterStat label="RUNNING" value={running / total} caption={`${running}/${instances.length}`} />
         <MeterStat label="HARDENED" value={hardened / total} caption={`${hardened}/${instances.length}`} />
         {regions.map(([region, count]) => (
           <MeterStat key={region} label={region} value={count / total} caption={String(count)} width={10} />

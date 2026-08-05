@@ -13,11 +13,11 @@ export function OpRunner() {
   if (!op) return null
 
   const done = op.phase === "done"
-  const color = !done ? palette.downlink : op.ok ? palette.nominal : palette.flare
+  const color = !done ? palette.active : op.ok ? palette.ok : palette.error
   const footer = done ? (
-    <text fg={palette.beacon}>[enter] dismiss</text>
+    <text fg={palette.accent}>[enter] dismiss</text>
   ) : (
-    <text fg={palette.static}>working…</text>
+    <text fg={palette.muted}>working…</text>
   )
 
   return (

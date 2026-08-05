@@ -25,7 +25,7 @@ export const TOOLS: ToolSpec[] = [
     id: "gcloud",
     bin: "gcloud",
     label: "gcloud",
-    purpose: "Google Cloud SDK — lists and launches the fleet",
+    purpose: "Google Cloud SDK — lists and creates instances",
     required: true,
     docs: "https://cloud.google.com/sdk/docs/install",
     install: { darwin: "brew install --cask google-cloud-sdk" },
@@ -34,7 +34,7 @@ export const TOOLS: ToolSpec[] = [
     id: "ssh",
     bin: "ssh",
     label: "ssh",
-    purpose: "uplink + hardened probe",
+    purpose: "ssh session + hardened probe",
     required: false,
     docs: "https://www.openssh.com/",
     install: {

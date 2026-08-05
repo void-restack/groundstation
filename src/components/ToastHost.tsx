@@ -2,10 +2,10 @@ import { useToasts, type ToastVariant } from "../state/toast"
 import { palette } from "../theme"
 
 const VARIANT_COLOR: Record<ToastVariant, string> = {
-  info: palette.downlink,
-  success: palette.nominal,
-  warning: palette.caution,
-  error: palette.flare,
+  info: palette.active,
+  success: palette.ok,
+  warning: palette.warn,
+  error: palette.error,
 }
 
 /**
@@ -41,7 +41,7 @@ export function ToastHost() {
           paddingRight={1}
           flexDirection="column"
         >
-          <text fg={palette.starlight} wrapMode="word">
+          <text fg={palette.text} wrapMode="word">
             {t.message}
           </text>
         </box>

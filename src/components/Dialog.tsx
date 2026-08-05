@@ -51,10 +51,10 @@ export function Dialog({
         gap={1}
       >
         <box flexDirection="row" justifyContent="space-between">
-          <text fg={palette.beacon} attributes={TextAttributes.BOLD}>
+          <text fg={palette.accent} attributes={TextAttributes.BOLD}>
             {title}
           </text>
-          {onClose ? <text fg={palette.static}>esc</text> : null}
+          {onClose ? <text fg={palette.muted}>esc</text> : null}
         </box>
         {children}
         {footer ? (

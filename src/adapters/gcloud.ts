@@ -1,5 +1,5 @@
 import type { Server, ServerStatus } from "../domain"
-import { flightCode, regionOf } from "../lib/format"
+import { regionOf } from "../lib/format"
 import { exec, execJSON } from "./exec"
 
 interface RawInstance {
@@ -39,7 +39,6 @@ function toServer(raw: RawInstance): Server {
     status,
     zone,
     region: regionOf(zone),
-    flightCode: flightCode(zone),
     machineType: tail(raw.machineType),
     externalIp: ni?.accessConfigs?.[0]?.natIP ?? null,
     internalIp: ni?.networkIP ?? null,

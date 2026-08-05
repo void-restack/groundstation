@@ -23,7 +23,7 @@ export function Field({
 }) {
   return (
     <box flexDirection="row" gap={1} alignItems="center">
-      <text fg={focused ? palette.downlink : palette.static}>{label.padEnd(labelWidth)}</text>
+      <text fg={focused ? palette.active : palette.muted}>{label.padEnd(labelWidth)}</text>
       <box
         width={boxWidth}
         height={1}
@@ -57,8 +57,8 @@ export function PickerField({
 }) {
   return (
     <Field label={label} focused={focused}>
-      <text fg={palette.starlight}>{value}</text>
-      {busy ? <Spinner /> : <text fg={focused ? palette.beacon : palette.hairline}>{glyph.search}</text>}
+      <text fg={palette.text}>{value}</text>
+      {busy ? <Spinner /> : <text fg={focused ? palette.accent : palette.border}>{glyph.search}</text>}
     </Field>
   )
 }
@@ -79,9 +79,9 @@ export function SelectField({
 }) {
   return (
     <Field label={label} focused={focused} labelWidth={labelWidth} boxWidth={boxWidth}>
-      <text fg={focused ? palette.beacon : palette.hairline}>◂</text>
-      <text fg={palette.starlight}>{value}</text>
-      <text fg={focused ? palette.beacon : palette.hairline}>▸</text>
+      <text fg={focused ? palette.accent : palette.border}>◂</text>
+      <text fg={palette.text}>{value}</text>
+      <text fg={focused ? palette.accent : palette.border}>▸</text>
     </Field>
   )
 }

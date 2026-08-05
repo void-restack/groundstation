@@ -17,7 +17,7 @@ export function ConfirmDialog() {
 
 function Billing({ note }: { note?: string }) {
   if (!note) return null
-  return <text fg={palette.caution}>{glyph.sep} {note}</text>
+  return <text fg={palette.warn}>{glyph.sep} {note}</text>
 }
 
 function YesNoConfirm({ req }: { req: ConfirmRequest }) {
@@ -26,13 +26,13 @@ function YesNoConfirm({ req }: { req: ConfirmRequest }) {
     else if (key.name === "n") resolveConfirm(false)
   })
   const footer = (
-    <text fg={palette.static}>
+    <text fg={palette.muted}>
       [y] confirm {glyph.sep} [n/esc] cancel
     </text>
   )
   return (
     <Dialog title={req.title} onClose={() => resolveConfirm(false)} footer={footer} width="50%">
-      <text fg={palette.starlight}>{req.message}</text>
+      <text fg={palette.text}>{req.message}</text>
       <Billing note={req.billing} />
     </Dialog>
   )
@@ -48,16 +48,16 @@ function TypedConfirm({ req }: { req: ConfirmRequest }) {
   })
 
   const footer = (
-    <text fg={match ? palette.nominal : palette.static}>
+    <text fg={match ? palette.ok : palette.muted}>
       {match ? "[enter] confirm" : `type “${expected}” to confirm`} {glyph.sep} [esc] cancel
     </text>
   )
   return (
     <Dialog title={req.title} onClose={() => resolveConfirm(false)} footer={footer} width="50%">
-      <text fg={palette.flare}>{req.message}</text>
+      <text fg={palette.error}>{req.message}</text>
       <Billing note={req.billing} />
       <box flexDirection="row" gap={1} marginTop={1}>
-        <text fg={palette.beacon}>{glyph.arrowRight}</text>
+        <text fg={palette.accent}>{glyph.arrowRight}</text>
         <FocusInput placeholder={expected} onInput={setValue} />
       </box>
     </Dialog>

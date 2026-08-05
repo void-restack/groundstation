@@ -33,10 +33,10 @@ export function Panel({
       padding={padding}
       border
       borderStyle="rounded"
-      borderColor={focused ? palette.downlink : palette.hairline}
+      borderColor={focused ? palette.active : palette.border}
       title={`${superscript(index)} ${title}`}
       titleAlignment="left"
-      titleColor={focused ? palette.downlink : palette.static}
+      titleColor={focused ? palette.active : palette.muted}
       bottomTitle={right}
       bottomTitleAlignment="right"
       flexDirection="column"

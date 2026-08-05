@@ -18,14 +18,14 @@ const NONE_LABEL = "(none — ssh agent/config)"
 
 function fileState(raw: string, hint: string) {
   const path = expandHome(raw.trim())
-  if (!path) return { text: `optional — ${hint}`, color: palette.static }
+  if (!path) return { text: `optional — ${hint}`, color: palette.muted }
   return existsSync(path)
-    ? { text: "✓ file found", color: palette.nominal }
-    : { text: "✗ file not found", color: palette.flare }
+    ? { text: "✓ file found", color: palette.ok }
+    : { text: "✗ file not found", color: palette.error }
 }
 
 /**
- * The shared mission-config form, used by both the first-run setup and the
+ * The shared config form, used by both the first-run setup and the
  * settings screen. Text fields are seeded once from the persisted profile and
  * read back via onInput. The SSH key is chosen from a fuzzy modal over the
  * detected ~/.ssh keys. Blank text fields persist as `null`, i.e. "auto-detect".
@@ -125,7 +125,7 @@ export function ConfigForm({
         />
       </Field>
 
-      <text fg={palette.static} marginTop={1}>
+      <text fg={palette.muted} marginTop={1}>
         ↑↓/tab move {glyph.sep} enter {glyph.search} ssh key / {saveLabel} {glyph.sep} esc {cancelLabel}
       </text>
 

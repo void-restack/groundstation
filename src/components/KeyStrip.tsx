@@ -16,8 +16,8 @@ export function KeyStrip({ hints }: { hints: KeyHint[] }) {
     >
       {hints.map((h) => (
         <box key={h.key} flexDirection="row">
-          <text fg={palette.beacon}>[{h.key}]</text>
-          <text fg={palette.static}>{h.label}</text>
+          <text fg={palette.accent}>[{h.key}]</text>
+          <text fg={palette.muted}>{h.label}</text>
         </box>
       ))}
     </box>

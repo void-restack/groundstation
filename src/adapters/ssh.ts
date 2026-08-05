@@ -25,7 +25,7 @@ export async function probeHardened(inst: Instance): Promise<boolean> {
   return (await proc.exited) === 0
 }
 
-/** Interactive shell into a vessel via the provider's SSH command (GCP: gcloud
+/** Interactive shell into an instance via the provider's SSH command (GCP: gcloud
  *  compute ssh, which provisions the key for you). Renderer suspended, like install. */
 export async function uplink(renderer: CliRenderer, inst: Instance): Promise<number> {
   const cmd = getProvider().sshCommand(inst)

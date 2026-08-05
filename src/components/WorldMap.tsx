@@ -1,6 +1,5 @@
 import { useTerminalDimensions } from "@opentui/react"
 import type { Instance } from "../domain"
-import { flightCode } from "../lib/format"
 import { regionLatLng } from "../lib/geo"
 import { isDaylight, isLand, subsolarLongitude } from "../lib/worldmap"
 import { palette } from "../theme"
@@ -35,7 +34,7 @@ function buildRows(w: number, h: number, subsolar: number): Cell[][] {
       const top = isLand(latTop, lon)
       const bot = isLand(latBot, lon)
       if (!top && !bot) {
-        row.push({ ch: " ", color: palette.void })
+        row.push({ ch: " ", color: palette.bg })
         continue
       }
       const color = landColor(lon, subsolar)
@@ -60,8 +59,8 @@ function buildMarkers(instances: Instance[], w: number, h: number): Marker[] {
     markers.push({
       col: Math.round(((lng + 180) / 360) * (w - 1)),
       row: Math.round(((90 - lat) / 180) * (h - 1)),
-      color: degraded ? palette.caution : palette.nominal,
-      code: flightCode(list[0]!.zone ?? "").split("·")[0]!,
+      color: degraded ? palette.warn : palette.ok,
+      code: region,
     })
   }
   return markers
@@ -105,7 +104,7 @@ export function WorldMap({ instances }: { instances: Instance[] }) {
         {markers.map((m, i) => (
           <box key={i} position="absolute" left={m.col} top={m.row} flexDirection="row">
             <text fg={m.color}>◉</text>
-            <text fg={palette.starlight}> {m.code}</text>
+            <text fg={palette.text}> {m.code}</text>
           </box>
         ))}
       </box>

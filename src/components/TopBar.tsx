@@ -17,19 +17,19 @@ export function TopBar({ fleetSize }: { fleetSize: number }) {
       backgroundColor={palette.panel}
     >
       <box flexDirection="row">
-        <text fg={palette.beacon} attributes={TextAttributes.BOLD}>
+        <text fg={palette.accent} attributes={TextAttributes.BOLD}>
           G
         </text>
-        <text fg={palette.starlight} attributes={TextAttributes.BOLD}>
+        <text fg={palette.text} attributes={TextAttributes.BOLD}>
           ROUNDSTATION
         </text>
-        <text fg={palette.static}> {glyph.sep} fleet of {fleetSize}</text>
+        <text fg={palette.muted}> {glyph.sep} fleet of {fleetSize}</text>
       </box>
-      <text fg={palette.static}>{project || "…"}</text>
+      <text fg={palette.muted}>{project || "…"}</text>
       <box flexDirection="row" gap={1}>
-        <text fg={palette.downlink}>{clockUTC(now)} UTC</text>
-        <text fg={palette.hairline}>{glyph.sep}</text>
-        <text fg={palette.static}>{clockLocal(now)}</text>
+        <text fg={palette.active}>{clockUTC(now)} UTC</text>
+        <text fg={palette.border}>{glyph.sep}</text>
+        <text fg={palette.muted}>{clockLocal(now)}</text>
       </box>
     </box>
   )

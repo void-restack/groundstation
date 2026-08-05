@@ -65,7 +65,7 @@ export function SearchModal<T>({
   })
 
   const footer = (
-    <text fg={palette.static}>
+    <text fg={palette.muted}>
       ↑↓ move {glyph.sep} enter select {glyph.sep} esc cancel {glyph.sep} {filtered.length} match
       {filtered.length === 1 ? "" : "es"}
     </text>
@@ -74,12 +74,12 @@ export function SearchModal<T>({
   return (
     <Dialog title={title} onClose={onClose} footer={footer} width="60%">
       <box flexDirection="row" gap={1}>
-        <text fg={palette.beacon}>{glyph.arrowRight}</text>
+        <text fg={palette.accent}>{glyph.arrowRight}</text>
         <FocusInput placeholder={placeholder} onInput={onInput} />
       </box>
       <box flexDirection="column" height={rows}>
         {filtered.length === 0 ? (
-          <text fg={palette.static}>no matches</text>
+          <text fg={palette.muted}>no matches</text>
         ) : (
           shown.map((it, i) => {
             const realIdx = start + i
@@ -93,12 +93,12 @@ export function SearchModal<T>({
                 backgroundColor={active ? palette.raised : undefined}
               >
                 <box flexDirection="row" gap={1}>
-                  <text fg={active ? palette.downlink : palette.static}>
+                  <text fg={active ? palette.active : palette.muted}>
                     {active ? glyph.arrowRight : " "}
                   </text>
-                  <text fg={active ? palette.starlight : palette.static}>{it.label}</text>
+                  <text fg={active ? palette.text : palette.muted}>{it.label}</text>
                 </box>
-                {it.hint ? <text fg={palette.static}>{it.hint}</text> : null}
+                {it.hint ? <text fg={palette.muted}>{it.hint}</text> : null}
               </box>
             )
           })

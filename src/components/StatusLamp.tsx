@@ -6,7 +6,7 @@ import { glyph, palette } from "../theme"
 
 function BreathingLamp({ color, breathMs }: { color: string; breathMs: number }) {
   const now = useClock()
-  const dim = lerpHex(color, palette.void, 0.55)
+  const dim = lerpHex(color, palette.bg, 0.55)
   return <text fg={lerpHex(dim, color, pulse(now, breathMs))}>{glyph.lamp}</text>
 }
 

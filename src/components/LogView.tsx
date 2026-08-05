@@ -29,7 +29,7 @@ export function LogView({
       paddingRight={1}
     >
       {view.map((line, i) => (
-        <text key={i} fg={palette.static}>
+        <text key={i} fg={palette.muted}>
           {line}
         </text>
       ))}
@@ -38,7 +38,7 @@ export function LogView({
 
   if (!title) return body
   return (
-    <box flexGrow={1} border borderStyle="rounded" borderColor={palette.hairline} title={` ${title} `}>
+    <box flexGrow={1} border borderStyle="rounded" borderColor={palette.border} title={` ${title} `}>
       {body}
     </box>
   )

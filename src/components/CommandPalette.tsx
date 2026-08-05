@@ -30,22 +30,22 @@ export function CommandPalette() {
 
   const commands = useMemo<Command[]>(
     () => [
-      { id: "provision", title: "Provision a new vessel", run: () => setScreen("launch") },
+      { id: "new", title: "New instance", run: () => setScreen("launch") },
       {
         id: "ssh",
-        title: current ? `Uplink → ${current.name}` : "Uplink (select a vessel first)",
+        title: current ? `SSH → ${current.name}` : "SSH (select an instance first)",
         run: () => {
           if (current) void uplink(renderer, current).then(() => refreshFleet())
         },
       },
-      { id: "orbit", title: "Orbit view", run: () => setScreen("orbit") },
+      { id: "map", title: "Region map", run: () => setScreen("orbit") },
       { id: "project", title: "Switch project — change active GCP project", run: () => setProjectSwitch(true) },
       {
         id: "auth",
         title: "Re-authenticate — gcloud auth login",
         run: () => void reauth(renderer).then(() => refreshFleet()),
       },
-      { id: "settings", title: "Settings — mission config", run: () => setScreen("settings") },
+      { id: "settings", title: "Settings", run: () => setScreen("settings") },
       { id: "tools", title: "Dependencies — check & install tools", run: () => setTools(true) },
       { id: "refresh", title: "Refresh fleet", run: () => void refreshFleet() },
       {
@@ -97,23 +97,23 @@ export function CommandPalette() {
       zIndex={100}
     >
       <box flexDirection="row" justifyContent="space-between">
-        <text fg={palette.beacon} attributes={TextAttributes.BOLD}>COMMAND</text>
-        <text fg={palette.static}>esc</text>
+        <text fg={palette.accent} attributes={TextAttributes.BOLD}>COMMAND</text>
+        <text fg={palette.muted}>esc</text>
       </box>
       <box flexDirection="row" gap={1}>
-        <text fg={palette.beacon}>{glyph.arrowRight}</text>
+        <text fg={palette.accent}>{glyph.arrowRight}</text>
         <FocusInput placeholder="type a command…" onInput={onInput} />
       </box>
       <box flexDirection="column">
         {filtered.length === 0 ? (
-          <text fg={palette.static}>no matches</text>
+          <text fg={palette.muted}>no matches</text>
         ) : (
           filtered.map((c, i) => (
             <box key={c.id} flexDirection="row" gap={1} backgroundColor={i === clamped ? palette.raised : undefined}>
-              <text fg={i === clamped ? palette.downlink : palette.static}>
+              <text fg={i === clamped ? palette.active : palette.muted}>
                 {i === clamped ? glyph.arrowRight : " "}
               </text>
-              <text fg={i === clamped ? palette.starlight : palette.static}>{c.title}</text>
+              <text fg={i === clamped ? palette.text : palette.muted}>{c.title}</text>
             </box>
           ))
         )}

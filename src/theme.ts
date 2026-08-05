@@ -54,17 +54,17 @@ const cpuMid = pick("cpu_mid", "#e0af68")
 const cpuEnd = pick("cpu_end", "#f7768e")
 
 export const palette = {
-  void: bg,
+  bg,
   panel: lerpHex(bg, pick("selected_bg", "#2f334d"), 0.35),
   raised: pick("selected_bg", "#2f334d"),
-  hairline: pick("div_line", "#3b4261"),
-  downlink: pick("hi_fg", "#7dcfff"),
-  beacon: cpuMid,
-  nominal: cpuStart,
-  caution: cpuMid,
-  flare: cpuEnd,
-  static: pick("inactive_fg", "#565f89"),
-  starlight: pick("main_fg", "#c0caf5"),
+  border: pick("div_line", "#3b4261"),
+  active: pick("hi_fg", "#7dcfff"),
+  accent: cpuMid,
+  ok: cpuStart,
+  warn: cpuMid,
+  error: cpuEnd,
+  muted: pick("inactive_fg", "#565f89"),
+  text: pick("main_fg", "#c0caf5"),
 } as const
 
 export const meterGradient: readonly string[] = [cpuStart, cpuMid, cpuEnd]

@@ -3,7 +3,7 @@ import { streamLines } from "../adapters/exec"
 import { expandHome } from "../config"
 import type { ProvisionContext, ProvisionEvent, Provisioner } from "./types"
 
-/** SSH into the vessel and run a script over stdin, streaming each line as a log event. */
+/** SSH into the instance and run a script over stdin, streaming each line as a log event. */
 async function runRemote(
   ctx: ProvisionContext,
   script: string,
@@ -11,7 +11,7 @@ async function runRemote(
 ): Promise<boolean> {
   const target = ctx.provider.sshTarget(ctx.instance)
   if (!target) {
-    onEvent({ type: "log", line: "no reachable ssh target (vessel has no external IP)" })
+    onEvent({ type: "log", line: "no reachable ssh target (instance has no external IP)" })
     return false
   }
   const idArgs = target.identityFile ? ["-i", target.identityFile] : []
