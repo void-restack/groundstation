@@ -222,6 +222,15 @@ export const gcp: Provider = {
     return out
   },
 
+  async listServiceAccounts(): Promise<Choice[]> {
+    const accounts = await execJSON<Array<{ email: string; displayName?: string }>>([
+      "gcloud", "iam", "service-accounts", "list", "--format=json",
+    ]).catch(() => [])
+    return accounts
+      .map((a) => ({ value: a.email, label: a.email, hint: a.displayName }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  },
+
   async listImages(): Promise<Choice[]> {
     // one family = one launchable image (--image-family resolves to the latest);
     // dedupe by family, read the project out of the selfLink.

@@ -230,7 +230,7 @@ test("Launch form renders sectioned fields inside a scrollbox", async () => {
     expect(frame).toContain("NEW INSTANCE")
     expect(frame).toContain("BASICS")
     expect(frame).toContain("NAME")
-    expect(frame).toContain("REVIEW & CREATE")
+    expect(frame).toContain("ZONE")
   } finally {
     setup.renderer.destroy()
   }

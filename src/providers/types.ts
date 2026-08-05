@@ -83,4 +83,5 @@ export interface Provider {
   listSizes(region: string): Promise<Choice[]>
   listDiskTypes(region: string): Promise<Choice[]>
   listImages(region: string): Promise<Choice[]>
+  listServiceAccounts(): Promise<Choice[]>
 }

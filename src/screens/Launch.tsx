@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { listZones } from "../adapters/gcloud"
 import { config, detectPublicKeys } from "../config"
 import { zoneLocation } from "../lib/geo"
+import { parseLabels } from "../lib/parse"
 import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
 import { SearchModal, type SearchItem } from "../components/SearchModal"
@@ -20,7 +21,9 @@ import { setScreen } from "../state/ui"
 import { glyph, palette } from "../theme"
 
 type Stage = "form" | "review" | "creating"
-type Picker = "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision" | "sudo" | "sshkey"
+type Picker =
+  | "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
+  | "serviceaccount" | "scopes" | "sudo" | "sshkey"
 type Section = "BASICS" | "SETUP" | "ACCESS"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
@@ -49,6 +52,15 @@ const SUDO_OPTS: { value: boolean; label: string }[] = [
   { value: true, label: "yes (passwordless sudo)" },
   { value: false, label: "no (standard user)" },
 ]
+// Service-account access scopes (see research/05-sa-scope-presets.md). "" = the
+// default scopes (emit no flag); "no-scopes" maps to --no-scopes in createArgs.
+const SCOPE_PRESETS: SearchItem<string>[] = [
+  { value: "", label: "default (recommended)", hint: "storage-ro, logging, monitoring, trace" },
+  { value: "cloud-platform", label: "full access (all Cloud APIs)", hint: "pair with a custom SA + IAM roles" },
+  { value: "storage-ro,compute-ro,monitoring-read", label: "read-only", hint: "read buckets, compute, metrics" },
+  { value: "no-scopes", label: "locked down (no scopes)", hint: "no Google API access via the SA token" },
+]
+const DEFAULT_SA: SearchItem<string> = { value: "", label: "default (project SA)" }
 
 const FALLBACK_ZONES = [
   "us-central1-a", "us-central1-b", "us-central1-c", "us-east1-b", "us-west1-a",
@@ -159,6 +171,11 @@ export function Launch() {
   const [firewall, setFirewall] = useState<Firewall>({ http: false, https: false })
   const [spot, setSpot] = useState(false)
   const [provisioning, setProvisioning] = useState<ProvisioningProfile>({ name: "none", kind: "none" })
+  const [labelsInput, setLabelsInput] = useState("")
+  const [serviceAccount, setServiceAccount] = useState("")
+  const [scopes, setScopes] = useState("")
+  const [saItems, setSaItems] = useState<SearchItem<string>[]>([DEFAULT_SA])
+  const [saLoading, setSaLoading] = useState(true)
   const [user, setUser] = useState("")
   const [sudo, setSudo] = useState(true)
   const pubKeyItems = useMemo<SearchItem<string>[]>(
@@ -172,6 +189,16 @@ export function Launch() {
   const sshKeyLabel = pubKeyItems.find((k) => k.value === sshKeyPath)?.label ?? "none"
   const userValid = !user.trim() || validUsername(user.trim())
   const userNeedsKey = Boolean(user.trim()) && !sshKeyPath
+  const labels = parseLabels(labelsInput)
+  const scopeLabel = SCOPE_PRESETS.find((p) => p.value === scopes)?.label ?? scopes
+  const saLabel = saItems.find((s) => s.value === serviceAccount)?.label ?? (serviceAccount || DEFAULT_SA.label)
+
+  // A custom SA with the default (limited) scopes silently 403s on IAM-granted
+  // APIs; the recommended pattern is a custom SA + cloud-platform. Nudge there.
+  const pickServiceAccount = (v: string) => {
+    setServiceAccount(v)
+    if (v && scopes === "") setScopes("cloud-platform")
+  }
 
   const [diskTypeItems, setDiskTypeItems] = useState<SearchItem<string>[]>([{ value: "", label: "default (image default)" }])
   const [diskTypesLoading, setDiskTypesLoading] = useState(true)
@@ -285,6 +312,22 @@ export function Launch() {
     }
   }, [])
 
+  useEffect(() => {
+    let alive = true
+    getProvider()
+      .listServiceAccounts()
+      .then((accts) => {
+        if (alive && accts.length) setSaItems([DEFAULT_SA, ...accts])
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setSaLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   const cx = parseCustom(custom)
   const [imgFamily = "", imgProject = ""] = image.split("|")
   const buildSpec = (): LaunchSpec => ({
@@ -300,6 +343,9 @@ export function Launch() {
     allowHttp: firewall.http,
     allowHttps: firewall.https,
     spot,
+    labels: Object.keys(labels).length ? labels : undefined,
+    serviceAccount: serviceAccount || undefined,
+    scopes: scopes || undefined,
     provisioning,
     userSetup:
       user.trim() && validUsername(user.trim()) && sshKeyPath
@@ -343,9 +389,19 @@ export function Launch() {
     { id: "disktype", section: "BASICS", picker: "disktype", node: (f) => <PickerField label="DISK TYPE" value={diskTypeLabel} focused={f} busy={diskTypesLoading} /> },
     { id: "firewall", section: "BASICS", picker: "firewall", node: (f) => <PickerField label="FIREWALL" value={firewallLabel} focused={f} /> },
     { id: "spot", section: "BASICS", picker: "spot", node: (f) => <PickerField label="SPOT" value={spotLabel} focused={f} /> },
+    {
+      id: "labels", section: "BASICS", picker: null,
+      node: (f) => (
+        <Field label="LABELS" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="optional — key=value pairs e.g. env=prod team=core" onInput={setLabelsInput} />
+        </Field>
+      ),
+    },
 
     { id: "provision", section: "SETUP", picker: "provision", node: (f) => <PickerField label="PROVISION" value={provisionLabel} focused={f} /> },
 
+    { id: "serviceaccount", section: "ACCESS", picker: "serviceaccount", node: (f) => <PickerField label="SVC ACCT" value={saLabel} focused={f} busy={saLoading} /> },
+    { id: "scopes", section: "ACCESS", picker: "scopes", node: (f) => <PickerField label="SCOPES" value={scopeLabel} focused={f} /> },
     {
       id: "user", section: "ACCESS", picker: null,
       node: (f) => (
@@ -481,6 +537,10 @@ export function Launch() {
             <text fg={palette.muted}>image {glyph.arrowRight} <span fg={palette.text}>{spec.imageFamily}</span> ({spec.imageProject})</text>
             <text fg={palette.muted}>disk {glyph.arrowRight} <span fg={palette.text}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
             <text fg={palette.muted}>firewall {glyph.arrowRight} <span fg={palette.text}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>
+            {Object.keys(labels).length ? (
+              <text fg={palette.muted}>labels {glyph.arrowRight} <span fg={palette.text}>{Object.entries(labels).map(([k, v]) => `${k}=${v}`).join(" ")}</span></text>
+            ) : null}
+            <text fg={palette.muted}>svc acct {glyph.arrowRight} <span fg={palette.text}>{saLabel}</span> {glyph.sep} scopes {scopeLabel}</text>
             <text fg={palette.muted}>provision {glyph.arrowRight} <span fg={palette.text}>{provisionLabel}</span></text>
             {spec.userSetup ? (
               <text fg={palette.muted}>user {glyph.arrowRight} <span fg={palette.text}>{spec.userSetup.username}</span> {sudo ? "(sudo)" : "(no sudo)"} {glyph.sep} key {sshKeyLabel}</text>
@@ -544,6 +604,22 @@ export function Launch() {
           placeholder="none · templates · your files…"
           items={provisionItems}
           onPick={setProvisioning}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "serviceaccount" ? (
+        <SearchModal<string>
+          title="SELECT SERVICE ACCOUNT"
+          placeholder={saLoading ? "loading service accounts…" : "default (project SA) · a custom SA…"}
+          items={saItems}
+          onPick={pickServiceAccount}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "scopes" ? (
+        <SearchModal<string>
+          title="SELECT ACCESS SCOPES"
+          placeholder="default · full · read-only · locked…"
+          items={SCOPE_PRESETS}
+          onPick={setScopes}
           onClose={() => setPicker(null)}
         />
       ) : picker === "sudo" ? (

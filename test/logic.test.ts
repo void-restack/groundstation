@@ -8,6 +8,7 @@ import { DEFAULT_PROVIDER, getProvider, registeredProviders } from "../src/provi
 import { lifecycleArgs, serverToInstance } from "../src/providers/gcp"
 import { createArgs } from "../src/adapters/gcloud"
 import { zoneLocation } from "../src/lib/geo"
+import { parseLabels } from "../src/lib/parse"
 import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
 import { getProvisioner, registeredProvisioners } from "../src/provisioners/registry"
@@ -408,6 +409,15 @@ test("createArgs adds boot-disk size, network tags, and cloud-init metadata when
   expect(bare.some((a) => a.startsWith("--boot-disk-size"))).toBe(false)
   expect(bare.some((a) => a.startsWith("--tags"))).toBe(false)
   expect(bare.some((a) => a.startsWith("--provisioning-model"))).toBe(false)
+})
+
+test("parseLabels reads k=v pairs and skips malformed tokens", () => {
+  expect(parseLabels("env=prod team=core")).toEqual({ env: "prod", team: "core" })
+  expect(parseLabels("  env=prod   team=core  ")).toEqual({ env: "prod", team: "core" })
+  expect(parseLabels("")).toEqual({})
+  expect(parseLabels("noeq bad= =noval keep=me")).toEqual({ "bad": "", keep: "me" })
+  // a value may contain an '=' (only the first splits)
+  expect(parseLabels("url=a=b")).toEqual({ url: "a=b" })
 })
 
 test("createArgs emits labels, service account, and scopes when set", () => {
