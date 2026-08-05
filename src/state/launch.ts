@@ -45,6 +45,20 @@ export interface LaunchSpec {
   users?: UserSetup[]
 }
 
+/** A saved provisioning preset: the reusable subset of a spec, minus the instance name. */
+export type StoredPreset = Omit<LaunchSpec, "name">
+
+/** Strip the instance name so the rest can be stored and reused across launches. */
+export function specToPreset(spec: LaunchSpec): StoredPreset {
+  const { name: _name, ...rest } = spec
+  return rest
+}
+
+/** Rehydrate a stored preset into a full spec by supplying a fresh instance name. */
+export function presetToSpec(preset: StoredPreset, name: string): LaunchSpec {
+  return { ...preset, name }
+}
+
 /**
  * Compose every first-boot fragment (login user + setup fields) into one bash
  * startup-script via buildFirstBoot. When a bash recipe already sits in

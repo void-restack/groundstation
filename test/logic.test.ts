@@ -1,6 +1,16 @@
 import { expect, test } from "bun:test"
 import { TOOLS, detectTool, installCommand } from "../src/adapters/tools"
-import { config, expandHome, resolveConfig, type PersistedConfig } from "../src/config"
+import {
+  config,
+  deletePreset,
+  expandHome,
+  listPresets,
+  loadConfig,
+  resolveConfig,
+  savePreset,
+  type PersistedConfig,
+} from "../src/config"
+import { presetToSpec, specToPreset, type LaunchSpec } from "../src/state/launch"
 import { summarizeError } from "../src/lib/errors"
 import { duration, elapsed, regionOf } from "../src/lib/format"
 import { lerpHex } from "../src/lib/color"
@@ -37,6 +47,7 @@ const basePersisted: PersistedConfig = {
   authorizedKeys: null,
   pollIntervalMs: 15000,
   port: 2222,
+  provisionPresets: {},
 }
 
 /** Run `fn` with the given GND_* vars temporarily cleared/overridden, then restore. */
@@ -300,6 +311,51 @@ test("cloud-init rejects a missing user-data file with a clear error", () => {
   expect(() =>
     getProvisioner("cloud-init").buildCreatePayload!({ name: "x", kind: "cloud-init", userData: "/no/such/file.yml" }),
   ).toThrow(/not found/)
+})
+
+test("specToPreset/presetToSpec round-trip a spec minus its name, JSON-safe", () => {
+  const spec: LaunchSpec = {
+    name: "vm-x", zone: "us-central1-a", machineType: "e2-medium",
+    imageFamily: "debian-12", imageProject: "debian-cloud",
+    allowHttp: true, allowHttps: false, spot: true,
+    labels: { env: "prod" }, serviceAccount: "sa@p.iam.gserviceaccount.com", scopes: "cloud-platform",
+    env: { NODE_ENV: "production" }, packages: ["htop", "git"],
+    hostname: "web-1", timezone: "UTC", swapMb: 2048, hardenSsh: true,
+    provisioning: { name: "none", kind: "none" },
+    users: [{ username: "deploy", sudo: true, keys: ["/home/u/.ssh/id_ed25519.pub"] }],
+  }
+  const preset = specToPreset(spec)
+  expect("name" in preset).toBe(false)
+  // survives the JSON round-trip config.json performs
+  expect(JSON.parse(JSON.stringify(preset))).toEqual(preset)
+  const back = presetToSpec(preset, "vm-y")
+  expect(back.name).toBe("vm-y")
+  expect({ ...back, name: "vm-x" }).toEqual(spec)
+})
+
+test("savePreset persists to config.json and listPresets reads it back", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gnd-cfg-"))
+  try {
+    withEnv({ XDG_CONFIG_HOME: dir }, () => {
+      loadConfig()
+      expect(listPresets()).toEqual({})
+      const preset = specToPreset({
+        name: "n", zone: "asia-south1-a", machineType: "e2-small",
+        imageFamily: "debian-12", imageProject: "debian-cloud",
+        allowHttp: false, allowHttps: false, spot: false,
+        provisioning: { name: "none", kind: "none" },
+      })
+      savePreset("web-prod", preset)
+      expect(Object.keys(listPresets())).toContain("web-prod")
+      const raw = JSON.parse(readFileSync(join(dir, "groundstation", "config.json"), "utf8"))
+      expect(raw.provisionPresets["web-prod"].zone).toBe("asia-south1-a")
+      deletePreset("web-prod")
+      expect(listPresets()).toEqual({})
+    })
+  } finally {
+    loadConfig() // restore the config singleton to the ambient environment
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 test("validUsername accepts linux names and rejects bad ones", () => {

@@ -2,12 +2,13 @@ import type { ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { listZones } from "../adapters/gcloud"
-import { config, detectPublicKeys } from "../config"
+import { config, detectPublicKeys, listPresets, savePreset } from "../config"
 import { zoneLocation } from "../lib/geo"
 import { parseEnv, parseLabels, parsePackages, parseSwapMb, validHostname } from "../lib/parse"
 import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
 import { ChecklistModal } from "../components/ChecklistModal"
+import { PromptModal } from "../components/PromptModal"
 import { SearchModal, type SearchItem } from "../components/SearchModal"
 import { Spinner } from "../components/Spinner"
 import type { LaunchStep } from "../domain"
@@ -17,15 +18,24 @@ import { TEMPLATES } from "../provisioners/templates"
 import type { ProvisioningProfile } from "../provisioners/types"
 import { validUsername } from "../provisioners/usersetup"
 import { useClock } from "../state/clock"
-import { beginLaunch, launchPhase, resetLaunch, useLaunch, type LaunchSpec } from "../state/launch"
+import {
+  beginLaunch,
+  launchPhase,
+  resetLaunch,
+  specToPreset,
+  useLaunch,
+  type LaunchSpec,
+  type StoredPreset,
+} from "../state/launch"
+import { pushToast } from "../state/toast"
 import { setScreen } from "../state/ui"
 import { glyph, palette } from "../theme"
 
 type Stage = "form" | "review" | "creating"
 type Picker =
-  | "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
+  | "preset" | "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
   | "serviceaccount" | "scopes" | "timezone" | "harden" | "sudo" | "userkeys"
-type Section = "BASICS" | "SETUP" | "ACCESS"
+type Section = "PRESET" | "BASICS" | "SETUP" | "ACCESS"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
 
@@ -219,6 +229,9 @@ export function Launch() {
   const [users, setUsers] = useState<UserRow[]>([])
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const userIdRef = useRef(0)
+  const [presets, setPresets] = useState<Record<string, StoredPreset>>(() => listPresets())
+  const [loadedPreset, setLoadedPreset] = useState("")
+  const [saving, setSaving] = useState(false)
   const pubKeyItems = useMemo<SearchItem<string>[]>(
     () => detectPublicKeys().map((k) => ({ value: k.path, label: k.label })),
     [],
@@ -253,6 +266,37 @@ export function Launch() {
   const pickServiceAccount = (v: string) => {
     setServiceAccount(v)
     if (v && scopes === "") setScopes("cloud-platform")
+  }
+
+  /** Fill every form field from a saved preset (the instance name is left as-is). */
+  const applyPreset = (name: string, p: StoredPreset) => {
+    setZone(p.zone)
+    setMachine(p.machineType)
+    setCustom(p.customCpu && p.customMemoryGb ? `${p.customCpu},${p.customMemoryGb}` : "")
+    setImage(`${p.imageFamily}|${p.imageProject}`)
+    setDisk(p.diskSizeGb ? String(p.diskSizeGb) : "")
+    setDiskType(p.diskType ?? "")
+    setFirewall({ http: p.allowHttp, https: p.allowHttps })
+    setSpot(p.spot)
+    setLabelsInput(p.labels ? Object.entries(p.labels).map(([k, v]) => `${k}=${v}`).join(" ") : "")
+    setServiceAccount(p.serviceAccount ?? "")
+    setScopes(p.scopes ?? "")
+    setPackagesInput(p.packages ? p.packages.join(" ") : "")
+    setEnvInput(p.env ? Object.entries(p.env).map(([k, v]) => `${k}=${v}`).join(" ") : "")
+    setHostname(p.hostname ?? "")
+    setTimezone(p.timezone ?? "")
+    setSwapInput(p.swapMb ? String(p.swapMb) : "")
+    setHardenSsh(Boolean(p.hardenSsh))
+    setProvisioning(p.provisioning)
+    setUsers((p.users ?? []).map((u) => ({ id: userIdRef.current++, username: u.username, sudo: u.sudo, keys: u.keys })))
+    setLoadedPreset(name)
+  }
+
+  const saveAsPreset = (name: string) => {
+    savePreset(name, specToPreset(buildSpec()))
+    setPresets(listPresets())
+    setLoadedPreset(name)
+    pushToast({ message: `preset saved: ${name}`, variant: "success" })
   }
 
   const [diskTypeItems, setDiskTypeItems] = useState<SearchItem<string>[]>([{ value: "", label: "default (image default)" }])
@@ -416,12 +460,17 @@ export function Launch() {
 
   // The form is a flat, sectioned descriptor list; focus, render, and picker
   // routing all derive from it, so a new field is one entry — no index renumbering.
+  const presetNames = Object.keys(presets)
   const descriptors: FieldDesc[] = [
+    {
+      id: "preset", section: "PRESET", picker: "preset",
+      node: (f) => <PickerField label="LOAD" value={presetNames.length ? loadedPreset || "load a saved config…" : "none saved yet"} focused={f} />,
+    },
     {
       id: "name", section: "BASICS", picker: null,
       node: (f) => (
         <Field label="NAME" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="required" onInput={setName} />
+          <input focused={f && !picker} flexGrow={1} value={name} placeholder="required" onInput={setName} />
         </Field>
       ),
     },
@@ -434,7 +483,7 @@ export function Launch() {
       id: "custom", section: "BASICS", picker: null,
       node: (f) => (
         <Field label="CUSTOM" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="optional — override cores,GB e.g. 4,8" onInput={setCustom} />
+          <input focused={f && !picker} flexGrow={1} value={custom} placeholder="optional — override cores,GB e.g. 4,8" onInput={setCustom} />
         </Field>
       ),
     },
@@ -443,7 +492,7 @@ export function Launch() {
       id: "disk", section: "BASICS", picker: null,
       node: (f) => (
         <Field label="DISK GB" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="default (image size)" onInput={setDisk} />
+          <input focused={f && !picker} flexGrow={1} value={disk} placeholder="default (image size)" onInput={setDisk} />
         </Field>
       ),
     },
@@ -454,7 +503,7 @@ export function Launch() {
       id: "labels", section: "BASICS", picker: null,
       node: (f) => (
         <Field label="LABELS" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="optional — key=value pairs e.g. env=prod team=core" onInput={setLabelsInput} />
+          <input focused={f && !picker} flexGrow={1} value={labelsInput} placeholder="optional — key=value pairs e.g. env=prod team=core" onInput={setLabelsInput} />
         </Field>
       ),
     },
@@ -464,7 +513,7 @@ export function Launch() {
       id: "packages", section: "SETUP", picker: null,
       node: (f) => (
         <Field label="PACKAGES" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="optional — extra apt packages e.g. htop git jq" onInput={setPackagesInput} />
+          <input focused={f && !picker} flexGrow={1} value={packagesInput} placeholder="optional — extra apt packages e.g. htop git jq" onInput={setPackagesInput} />
         </Field>
       ),
     },
@@ -472,7 +521,7 @@ export function Launch() {
       id: "env", section: "SETUP", picker: null,
       node: (f) => (
         <Field label="ENV" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="optional — KEY=value pairs e.g. NODE_ENV=production" onInput={setEnvInput} />
+          <input focused={f && !picker} flexGrow={1} value={envInput} placeholder="optional — KEY=value pairs e.g. NODE_ENV=production" onInput={setEnvInput} />
         </Field>
       ),
     },
@@ -480,7 +529,7 @@ export function Launch() {
       id: "hostname", section: "SETUP", picker: null,
       node: (f) => (
         <Field label="HOSTNAME" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="optional — set the system hostname" onInput={setHostname} />
+          <input focused={f && !picker} flexGrow={1} value={hostname} placeholder="optional — set the system hostname" onInput={setHostname} />
         </Field>
       ),
     },
@@ -489,7 +538,7 @@ export function Launch() {
       id: "swap", section: "SETUP", picker: null,
       node: (f) => (
         <Field label="SWAP" focused={f}>
-          <input focused={f && !picker} flexGrow={1} placeholder="optional — swapfile size e.g. 2G or 512M" onInput={setSwapInput} />
+          <input focused={f && !picker} flexGrow={1} value={swapInput} placeholder="optional — swapfile size e.g. 2G or 512M" onInput={setSwapInput} />
         </Field>
       ),
     },
@@ -565,7 +614,7 @@ export function Launch() {
   }
 
   useKeyboard((key) => {
-    if (picker) return // the SearchModal owns the keyboard while open
+    if (picker || saving) return // a modal owns the keyboard while open
 
     if (stage === "creating") {
       const phase = launchPhase()
@@ -579,7 +628,10 @@ export function Launch() {
       if (key.name === "return") return openFocusedPicker()
       return
     }
-    if (stage === "review" && key.name === "return") return setStage("creating")
+    if (stage === "review") {
+      if (key.name === "return") return setStage("creating")
+      if (key.name === "s") return setSaving(true)
+    }
   })
 
   if (stage === "creating") {
@@ -688,11 +740,28 @@ export function Launch() {
               </text>
             ))}
           </scrollbox>
-          <text fg={palette.accent}>[Enter] create {glyph.sep} [esc] back</text>
+          <text fg={palette.accent}>[Enter] create {glyph.sep} [s] save as preset {glyph.sep} [esc] back</text>
         </box>
       )}
 
-      {picker === "zone" ? (
+      {saving ? (
+        <PromptModal
+          title="SAVE PRESET"
+          placeholder="name this config e.g. web-prod"
+          onSubmit={saveAsPreset}
+          onClose={() => setSaving(false)}
+        />
+      ) : null}
+
+      {picker === "preset" ? (
+        <SearchModal<string>
+          title="LOAD PRESET"
+          placeholder={presetNames.length ? "pick a saved config…" : "no presets saved yet"}
+          items={presetNames.map((n) => ({ value: n, label: n, hint: `${presets[n]!.zone} ${glyph.sep} ${presets[n]!.machineType}` }))}
+          onPick={(n) => { const p = presets[n]; if (p) applyPreset(n, p) }}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "zone" ? (
         <SearchModal<string>
           title="SELECT ZONE"
           placeholder={zonesLoading ? "loading zones…" : "filter by zone or city…"}

@@ -12,6 +12,7 @@ import { ProjectSwitcher } from "../src/components/ProjectSwitcher"
 import { ProviderSwitcher } from "../src/components/ProviderSwitcher"
 import { SearchModal } from "../src/components/SearchModal"
 import { ChecklistModal } from "../src/components/ChecklistModal"
+import { PromptModal } from "../src/components/PromptModal"
 import { ToolsModal } from "../src/components/ToolsModal"
 import { Launch } from "../src/screens/Launch"
 import { actionsFor, describeLines } from "../src/state/actions"
@@ -229,9 +230,10 @@ test("Launch form renders sectioned fields inside a scrollbox", async () => {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
     expect(frame).toContain("NEW INSTANCE")
+    expect(frame).toContain("PRESET") // preset loader at the top of the form
+    expect(frame).toContain("LOAD")
     expect(frame).toContain("BASICS")
     expect(frame).toContain("NAME")
-    expect(frame).toContain("ZONE")
   } finally {
     setup.renderer.destroy()
   }
@@ -253,6 +255,22 @@ test("ChecklistModal renders rows with checkboxes and marks the pre-selected", a
     expect(frame).toContain("id_ed25519.pub")
     expect(frame).toContain("[x]") // the pre-selected key
     expect(frame).toContain("[ ]") // the unselected key
+  } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("PromptModal renders its title and prompt input", async () => {
+  const setup = await testRender(
+    <PromptModal title="SAVE PRESET" placeholder="name this config" onSubmit={() => {}} onClose={() => {}} />,
+    { width: 60, height: 10 },
+  )
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("SAVE PRESET")
+    expect(frame).toContain("name this config")
+    expect(frame).toContain("enter save")
   } finally {
     setup.renderer.destroy()
   }

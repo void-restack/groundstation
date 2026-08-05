@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "fs"
 import { homedir, userInfo } from "os"
 import { join } from "path"
+import type { StoredPreset } from "./state/launch"
 
 /**
  * User-editable settings, persisted to disk. `null` means "not set — fall back
@@ -17,6 +18,8 @@ export interface PersistedConfig {
   authorizedKeys: string | null
   pollIntervalMs: number
   port: number
+  /** Saved provisioning presets, keyed by user-chosen name. */
+  provisionPresets: Record<string, StoredPreset>
 }
 
 /** The resolved config the app actually reads (env > file > auto-default). */
@@ -45,6 +48,7 @@ const DEFAULT_PERSISTED: PersistedConfig = {
   authorizedKeys: null,
   pollIntervalMs: 15000,
   port: 2222,
+  provisionPresets: {},
 }
 
 /** ~/.config/groundstation (honours XDG_CONFIG_HOME); shared with the SSH host key. */
@@ -158,6 +162,23 @@ export function saveConfig(patch: Partial<PersistedConfig>): void {
 
 export function getPersisted(): PersistedConfig {
   return { ...persisted }
+}
+
+/** The saved provisioning presets, keyed by name. */
+export function listPresets(): Record<string, StoredPreset> {
+  return { ...persisted.provisionPresets }
+}
+
+/** Persist a preset under `name` (overwriting any existing one) via the atomic save. */
+export function savePreset(name: string, preset: StoredPreset): void {
+  saveConfig({ provisionPresets: { ...persisted.provisionPresets, [name]: preset } })
+}
+
+/** Remove a saved preset by name, if present. */
+export function deletePreset(name: string): void {
+  const next = { ...persisted.provisionPresets }
+  delete next[name]
+  saveConfig({ provisionPresets: next })
 }
 
 export function isFirstRun(): boolean {
