@@ -150,19 +150,22 @@ export async function beginLaunch(spec: LaunchSpec) {
       allowHttps: spec.allowHttps,
       spot: spec.spot,
       extra,
-    })
+    }, appendLog)
     resolveLast("changed")
 
     pushStep({ name: "wait for boot + network", role: "gcloud", state: "running", durationMs: null, detail: null })
+    appendLog("waiting for the instance to reach RUNNING with an external IP…")
     const up = await settle(spec.name)
     resolveLast(up ? "ok" : "failed")
     if (!up) throw new Error("instance did not reach RUNNING with an external IP")
 
     const inst = fleetSnapshot().find((s) => s.name === spec.name)
+    appendLog(`RUNNING${inst?.externalIp ? ` · ${inst.externalIp}` : ""}`)
 
     if (provisioner.injectsAtCreate) {
       // injected at create, runs at first boot — watch the serial console for it
       pushStep({ name: "run setup (first boot)", role: "provision", state: "running", durationMs: null, detail: null })
+      appendLog("reading first-boot output from the serial console…")
       const done = inst ? await waitBootConfig(inst) : false
       resolveLast(done ? "ok" : "changed", done ? undefined : "still running — watch the output")
       launch.set((s) => ({ ...s, phase: "succeeded" }))

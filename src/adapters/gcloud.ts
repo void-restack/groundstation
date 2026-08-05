@@ -1,6 +1,6 @@
 import type { Server, ServerStatus } from "../domain"
 import { regionOf } from "../lib/format"
-import { exec, execJSON } from "./exec"
+import { exec, execJSON, streamLines } from "./exec"
 
 interface RawInstance {
   id: string
@@ -109,7 +109,22 @@ export function createArgs(opts: CreateInstanceOpts): string[] {
   return args
 }
 
-export async function createInstance(opts: CreateInstanceOpts): Promise<void> {
-  const { stderr, code } = await exec(createArgs(opts))
-  if (code !== 0) throw new Error(stderr.trim() || `instance create failed (${code})`)
+export async function createInstance(
+  opts: CreateInstanceOpts,
+  onLog?: (line: string) => void,
+): Promise<void> {
+  const args = createArgs(opts)
+  if (!onLog) {
+    const { stderr, code } = await exec(args)
+    if (code !== 0) throw new Error(stderr.trim() || `instance create failed (${code})`)
+    return
+  }
+  onLog(`$ ${args.join(" ")}`)
+  const tail: string[] = []
+  const code = await streamLines(args, (line) => {
+    onLog(line)
+    tail.push(line)
+    if (tail.length > 20) tail.shift()
+  })
+  if (code !== 0) throw new Error(tail.join("\n").trim() || `instance create failed (${code})`)
 }

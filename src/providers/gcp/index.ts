@@ -128,7 +128,7 @@ export const gcp: Provider = {
     return stdout
   },
 
-  async create(spec: CreateSpec): Promise<{ id: string; name: string }> {
+  async create(spec: CreateSpec, onLog?: (line: string) => void): Promise<{ id: string; name: string }> {
     const zone = spec.zone ?? spec.region
     if (!zone) throw new Error("gcp create requires a zone")
     const { family, project } = unpackImage(spec.image, spec.extra)
@@ -149,7 +149,7 @@ export const gcp: Provider = {
       diskType: spec.diskType,
       spot: spec.spot,
       tags,
-    })
+    }, onLog)
     return { id: spec.name, name: spec.name }
   },
 

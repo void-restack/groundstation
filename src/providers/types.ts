@@ -64,7 +64,7 @@ export interface Provider {
   describe(id: string): Promise<Instance>
   serialConsole(inst: Instance): Promise<string>
 
-  create(spec: CreateSpec): Promise<{ id: string; name: string }>
+  create(spec: CreateSpec, onLog?: (line: string) => void): Promise<{ id: string; name: string }>
   sshCommand(inst: Instance): string[]
   start(inst: Instance): Promise<void>
   stop(inst: Instance): Promise<void>
