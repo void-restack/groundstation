@@ -1,5 +1,6 @@
+import type { ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { listZones } from "../adapters/gcloud"
 import { config, detectPublicKeys } from "../config"
 import { zoneLocation } from "../lib/geo"
@@ -20,8 +21,19 @@ import { glyph, palette } from "../theme"
 
 type Stage = "form" | "review" | "creating"
 type Picker = "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision" | "sudo" | "sshkey"
+type Section = "BASICS" | "SETUP" | "ACCESS"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
+
+/** One create-form field: how it renders, and which picker (if any) enter opens. */
+interface FieldDesc {
+  id: string
+  section: Section
+  picker: Picker | null
+  node: (focused: boolean) => ReactNode
+}
+
+const SUBMIT = "__submit__"
 
 const FIREWALLS: { value: Firewall; label: string }[] = [
   { value: { http: false, https: false }, label: "none" },
@@ -50,9 +62,6 @@ const IMAGES: Image[] = [
   { label: "ubuntu-22.04-lts", family: "ubuntu-2204-lts", project: "ubuntu-os-cloud" },
   { label: "ubuntu-24.04-lts", family: "ubuntu-2404-lts", project: "ubuntu-os-cloud" },
 ]
-
-// fields: NAME, ZONE, MACHINE, CUSTOM, IMAGE, DISK, DISK-TYPE, FIREWALL, SPOT, PROVISION, USER, SUDO, SSH-KEY, CONTINUE
-const FIELD_COUNT = 14
 
 /** Parse a "cores,GB" (or "cores GB") override into {cpu, memGb}, or null. */
 function parseCustom(s: string): { cpu: number; memGb: number } | null {
@@ -298,6 +307,70 @@ export function Launch() {
         : undefined,
   })
 
+  // The form is a flat, sectioned descriptor list; focus, render, and picker
+  // routing all derive from it, so a new field is one entry — no index renumbering.
+  const descriptors: FieldDesc[] = [
+    {
+      id: "name", section: "BASICS", picker: null,
+      node: (f) => (
+        <Field label="NAME" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="required" onInput={setName} />
+        </Field>
+      ),
+    },
+    { id: "zone", section: "BASICS", picker: "zone", node: (f) => <PickerField label="ZONE" value={zone} focused={f} busy={zonesLoading} /> },
+    {
+      id: "machine", section: "BASICS", picker: "machine",
+      node: (f) => <PickerField label="MACHINE" value={cx ? `custom ${cx.cpu}c/${cx.memGb}g` : machine} focused={f} busy={machinesLoading} />,
+    },
+    {
+      id: "custom", section: "BASICS", picker: null,
+      node: (f) => (
+        <Field label="CUSTOM" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="optional — override cores,GB e.g. 4,8" onInput={setCustom} />
+        </Field>
+      ),
+    },
+    { id: "image", section: "BASICS", picker: "image", node: (f) => <PickerField label="IMAGE" value={imageLabel} focused={f} busy={imagesLoading} /> },
+    {
+      id: "disk", section: "BASICS", picker: null,
+      node: (f) => (
+        <Field label="DISK GB" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="default (image size)" onInput={setDisk} />
+        </Field>
+      ),
+    },
+    { id: "disktype", section: "BASICS", picker: "disktype", node: (f) => <PickerField label="DISK TYPE" value={diskTypeLabel} focused={f} busy={diskTypesLoading} /> },
+    { id: "firewall", section: "BASICS", picker: "firewall", node: (f) => <PickerField label="FIREWALL" value={firewallLabel} focused={f} /> },
+    { id: "spot", section: "BASICS", picker: "spot", node: (f) => <PickerField label="SPOT" value={spotLabel} focused={f} /> },
+
+    { id: "provision", section: "SETUP", picker: "provision", node: (f) => <PickerField label="PROVISION" value={provisionLabel} focused={f} /> },
+
+    {
+      id: "user", section: "ACCESS", picker: null,
+      node: (f) => (
+        <Field label="USER" focused={f}>
+          <input focused={f && !picker} flexGrow={1} placeholder="optional — create a login user e.g. deploy" onInput={setUser} />
+        </Field>
+      ),
+    },
+    { id: "sudo", section: "ACCESS", picker: "sudo", node: (f) => <PickerField label="SUDO" value={user.trim() ? sudoLabel : "—"} focused={f} /> },
+    { id: "sshkey", section: "ACCESS", picker: "sshkey", node: (f) => <PickerField label="SSH KEY" value={user.trim() ? sshKeyLabel : "—"} focused={f} /> },
+  ]
+
+  const focusIds = [...descriptors.map((d) => d.id), SUBMIT]
+  const focusedId = focusIds[Math.min(focus, focusIds.length - 1)] ?? SUBMIT
+
+  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
+  useEffect(() => {
+    if (stage !== "form") return
+    const id = setTimeout(() => scrollRef.current?.scrollChildIntoView(`fld-${focusedId}`), 0)
+    return () => clearTimeout(id)
+  }, [focusedId, stage])
+  useEffect(() => {
+    setFocus((f) => Math.min(f, focusIds.length - 1))
+  }, [focusIds.length])
+
   const back = () => {
     resetLaunch()
     setScreen("board")
@@ -309,16 +382,10 @@ export function Launch() {
   }
 
   const openFocusedPicker = () => {
-    if (focus === 1) setPicker("zone")
-    else if (focus === 2) setPicker("machine")
-    else if (focus === 4) setPicker("image")
-    else if (focus === 6) setPicker("disktype")
-    else if (focus === 7) setPicker("firewall")
-    else if (focus === 8) setPicker("spot")
-    else if (focus === 9) setPicker("provision")
-    else if (focus === 11) setPicker("sudo")
-    else if (focus === 12) setPicker("sshkey")
-    else proceed() // NAME (0), CUSTOM (3), DISK (5), USER (10), CONTINUE (13)
+    if (focusedId === SUBMIT) return proceed()
+    const d = descriptors.find((x) => x.id === focusedId)
+    if (d?.picker) return setPicker(d.picker)
+    return proceed()
   }
 
   useKeyboard((key) => {
@@ -331,8 +398,8 @@ export function Launch() {
     }
     if (key.name === "escape") return stage === "review" ? setStage("form") : back()
     if (stage === "form") {
-      if (key.name === "tab" || key.name === "down") return setFocus((f) => (f + 1) % FIELD_COUNT)
-      if (key.name === "up") return setFocus((f) => (f - 1 + FIELD_COUNT) % FIELD_COUNT)
+      if (key.name === "tab" || key.name === "down") return setFocus((f) => (f + 1) % focusIds.length)
+      if (key.name === "up") return setFocus((f) => (f - 1 + focusIds.length) % focusIds.length)
       if (key.name === "return") return openFocusedPicker()
       return
     }
@@ -347,74 +414,79 @@ export function Launch() {
     )
   }
 
+  const validationHint = !name.trim() ? (
+    <text fg={palette.border}>{glyph.sep} name required</text>
+  ) : !userValid ? (
+    <text fg={palette.border}>{glyph.sep} user must be a valid linux name</text>
+  ) : userNeedsKey ? (
+    <text fg={palette.border}>{glyph.sep} pick an ssh key for the user</text>
+  ) : null
+
+  const rows: ReactNode[] = []
+  let lastSection: Section | null = null
+  for (const d of descriptors) {
+    if (d.section !== lastSection) {
+      rows.push(
+        <text key={`sec-${d.section}`} fg={palette.muted} marginTop={lastSection ? 1 : 0}>
+          {d.section}
+        </text>,
+      )
+      lastSection = d.section
+    }
+    rows.push(
+      <box key={d.id} id={`fld-${d.id}`}>
+        {d.node(d.id === focusedId)}
+      </box>,
+    )
+  }
+  rows.push(
+    <box key={SUBMIT} id={`fld-${SUBMIT}`} flexDirection="row" gap={1} marginTop={1}>
+      <text fg={focusedId === SUBMIT ? palette.ok : palette.muted}>
+        {focusedId === SUBMIT ? glyph.arrowRight : " "} REVIEW & CREATE
+      </text>
+      {validationHint}
+    </box>,
+  )
+
   const spec = buildSpec()
   return (
     <box flexDirection="column" width="100%" height="100%" padding={2} gap={1} backgroundColor={palette.bg}>
       <text fg={palette.accent}>NEW INSTANCE {glyph.sep} {stage === "form" ? "DETAILS" : "REVIEW"}</text>
 
       {stage === "form" ? (
-        <box flexDirection="column" gap={1} marginTop={1}>
-          <Field label="NAME" focused={focus === 0}>
-            <input focused={focus === 0 && !picker} flexGrow={1} placeholder="required" onInput={setName} />
-          </Field>
-          <PickerField label="ZONE" value={zone} focused={focus === 1} busy={zonesLoading} />
-          <PickerField label="MACHINE" value={cx ? `custom ${cx.cpu}c/${cx.memGb}g` : machine} focused={focus === 2} busy={machinesLoading} />
-          <Field label="CUSTOM" focused={focus === 3}>
-            <input focused={focus === 3 && !picker} flexGrow={1} placeholder="optional — override cores,GB e.g. 4,8" onInput={setCustom} />
-          </Field>
-          <PickerField label="IMAGE" value={imageLabel} focused={focus === 4} busy={imagesLoading} />
-          <Field label="DISK GB" focused={focus === 5}>
-            <input focused={focus === 5 && !picker} flexGrow={1} placeholder="default (image size)" onInput={setDisk} />
-          </Field>
-          <PickerField label="DISK TYPE" value={diskTypeLabel} focused={focus === 6} busy={diskTypesLoading} />
-          <PickerField label="FIREWALL" value={firewallLabel} focused={focus === 7} />
-          <PickerField label="SPOT" value={spotLabel} focused={focus === 8} />
-          <PickerField label="PROVISION" value={provisionLabel} focused={focus === 9} />
-          <Field label="USER" focused={focus === 10}>
-            <input focused={focus === 10 && !picker} flexGrow={1} placeholder="optional — create a login user e.g. deploy" onInput={setUser} />
-          </Field>
-          <PickerField label="SUDO" value={user.trim() ? sudoLabel : "—"} focused={focus === 11} />
-          <PickerField label="SSH KEY" value={user.trim() ? sshKeyLabel : "—"} focused={focus === 12} />
-
-          <box flexDirection="row" gap={1} marginTop={1}>
-            <text fg={focus === 13 ? palette.ok : palette.muted}>
-              {focus === 13 ? glyph.arrowRight : " "} REVIEW & CREATE
-            </text>
-            {!name.trim() ? (
-              <text fg={palette.border}>{glyph.sep} name required</text>
-            ) : !userValid ? (
-              <text fg={palette.border}>{glyph.sep} user must be a valid linux name</text>
-            ) : userNeedsKey ? (
-              <text fg={palette.border}>{glyph.sep} pick an ssh key for the user</text>
-            ) : null}
-          </box>
-
-          <text fg={palette.muted} marginTop={1}>
+        <>
+          <scrollbox ref={scrollRef} flexGrow={1} paddingRight={1}>
+            {rows}
+          </scrollbox>
+          <text fg={palette.muted}>
             ↑↓/tab move {glyph.sep} enter {glyph.search} search / continue {glyph.sep} esc back
           </text>
-        </box>
+        </>
       ) : (
         <box
           border
           borderStyle="rounded"
           borderColor={palette.active}
           title=" REVIEW "
-          padding={1}
+          paddingLeft={1}
+          paddingRight={1}
           flexDirection="column"
-          gap={1}
+          flexGrow={1}
           marginTop={1}
         >
-          <text fg={palette.muted}>name {glyph.arrowRight} <span fg={palette.text}>{spec.name}</span></text>
-          <text fg={palette.muted}>zone {glyph.arrowRight} <span fg={palette.text}>{spec.zone}</span></text>
-          <text fg={palette.muted}>machine {glyph.arrowRight} <span fg={palette.text}>{cx ? `custom ${cx.cpu} vCPU / ${cx.memGb} GB` : spec.machineType}</span></text>
-          <text fg={palette.muted}>image {glyph.arrowRight} <span fg={palette.text}>{spec.imageFamily}</span> ({spec.imageProject})</text>
-          <text fg={palette.muted}>disk {glyph.arrowRight} <span fg={palette.text}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
-          <text fg={palette.muted}>firewall {glyph.arrowRight} <span fg={palette.text}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>
-          <text fg={palette.muted}>provision {glyph.arrowRight} <span fg={palette.text}>{provisionLabel}</span></text>
-          {spec.userSetup ? (
-            <text fg={palette.muted}>user {glyph.arrowRight} <span fg={palette.text}>{spec.userSetup.username}</span> {sudo ? "(sudo)" : "(no sudo)"} {glyph.sep} key {sshKeyLabel}</text>
-          ) : null}
-          <text fg={palette.accent} marginTop={1}>[Enter] create {glyph.sep} [esc] back</text>
+          <scrollbox flexGrow={1}>
+            <text fg={palette.muted}>name {glyph.arrowRight} <span fg={palette.text}>{spec.name}</span></text>
+            <text fg={palette.muted}>zone {glyph.arrowRight} <span fg={palette.text}>{spec.zone}</span></text>
+            <text fg={palette.muted}>machine {glyph.arrowRight} <span fg={palette.text}>{cx ? `custom ${cx.cpu} vCPU / ${cx.memGb} GB` : spec.machineType}</span></text>
+            <text fg={palette.muted}>image {glyph.arrowRight} <span fg={palette.text}>{spec.imageFamily}</span> ({spec.imageProject})</text>
+            <text fg={palette.muted}>disk {glyph.arrowRight} <span fg={palette.text}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
+            <text fg={palette.muted}>firewall {glyph.arrowRight} <span fg={palette.text}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>
+            <text fg={palette.muted}>provision {glyph.arrowRight} <span fg={palette.text}>{provisionLabel}</span></text>
+            {spec.userSetup ? (
+              <text fg={palette.muted}>user {glyph.arrowRight} <span fg={palette.text}>{spec.userSetup.username}</span> {sudo ? "(sudo)" : "(no sudo)"} {glyph.sep} key {sshKeyLabel}</text>
+            ) : null}
+          </scrollbox>
+          <text fg={palette.accent}>[Enter] create {glyph.sep} [esc] back</text>
         </box>
       )}
 

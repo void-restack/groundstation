@@ -12,7 +12,16 @@ import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
 import { getProvisioner, registeredProvisioners } from "../src/provisioners/registry"
 import { TEMPLATES } from "../src/provisioners/templates"
-import { mergeUserSetup, standaloneUserSetup, userSetupCommands, validUsername } from "../src/provisioners/usersetup"
+import { userSetupCommands, validUsername } from "../src/provisioners/usersetup"
+import {
+  addSwap,
+  buildFirstBoot,
+  envExports,
+  hardenSsh,
+  installPackages,
+  setHostname,
+  setTimezone,
+} from "../src/provisioners/firstboot"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
@@ -311,19 +320,65 @@ test("userSetupCommands creates the user, adds the key, and gates sudo on the fl
   expect(noSudo).not.toContain("sudoers")
 })
 
-test("standaloneUserSetup is a runnable script ending with the done marker", () => {
-  const script = standaloneUserSetup("deploy", true, "ssh-ed25519 AAAA")
+test("buildFirstBoot without a recipe guards on gnd-provisioned and ends with the marker", () => {
+  const frag = userSetupCommands("deploy", true, "ssh-ed25519 AAAA").join("\n")
+  const script = buildFirstBoot([frag])
   expect(script.startsWith("#!/bin/bash")).toBe(true)
+  expect(script).toContain("[ -f /var/lib/gnd-provisioned ] && exit 0")
+  expect(script).toContain("useradd -m -s /bin/bash deploy")
+  expect(script).toContain("touch /var/lib/gnd-provisioned")
   expect(script).toContain("GND-PROVISION-DONE")
 })
 
-test("mergeUserSetup keeps both the user setup and the recipe body", () => {
+test("buildFirstBoot with a bash recipe runs fragments once then appends the recipe verbatim", () => {
   const recipe = TEMPLATES.find((t) => t.id === "docker")!.content
-  const merged = mergeUserSetup("deploy", true, "ssh-ed25519 AAAA", recipe)
-  expect(merged.startsWith("#!/bin/bash")).toBe(true)
-  expect(merged).toContain("useradd -m -s /bin/bash deploy")
-  expect(merged).toContain("docker.io")
-  expect(merged).toContain("GND-PROVISION-DONE")
+  const frag = userSetupCommands("deploy", true, "ssh-ed25519 AAAA").join("\n")
+  const script = buildFirstBoot([frag], recipe)
+  expect(script.startsWith("#!/bin/bash")).toBe(true)
+  // fragments guarded so they run only once
+  expect(script).toContain("if [ ! -f /var/lib/gnd-firstboot ]; then")
+  expect(script).toContain("touch /var/lib/gnd-firstboot")
+  expect(script).toContain("useradd -m -s /bin/bash deploy")
+  // recipe body kept whole, with its own guard + marker (not duplicated by us)
+  expect(script).toContain("docker.io")
+  expect(script).toContain("[ -f /var/lib/gnd-provisioned ] && exit 0")
+  expect(script).toContain("GND-PROVISION-DONE")
+  expect(script).not.toContain("touch /var/lib/gnd-provisioned\ntouch /var/lib/gnd-provisioned")
+})
+
+test("buildFirstBoot with no fragments and a recipe passes the recipe through unguarded", () => {
+  const recipe = TEMPLATES.find((t) => t.id === "base")!.content
+  const script = buildFirstBoot([], recipe)
+  expect(script.startsWith("#!/bin/bash")).toBe(true)
+  expect(script).not.toContain("gnd-firstboot")
+  expect(script).toContain("GND-PROVISION-DONE")
+})
+
+test("first-boot producers emit idempotent bash for each setup field", () => {
+  const env = envExports({ NODE_ENV: "production", API_URL: "https://api.example.com" })
+  expect(env).toContain("/etc/profile.d/gnd-env.sh")
+  expect(env).toContain("export NODE_ENV='production'")
+
+  const pkgs = installPackages(["htop", "git"])
+  expect(pkgs).toContain("apt-get")
+  expect(pkgs).toContain("install htop git")
+
+  expect(setHostname("web-1")).toContain("hostnamectl set-hostname 'web-1'")
+  expect(setTimezone("Asia/Kolkata")).toContain("timedatectl set-timezone 'Asia/Kolkata'")
+
+  const swap = addSwap(2048)
+  expect(swap).toContain("if [ ! -f /swapfile ]; then")
+  expect(swap).toContain("2048M")
+  expect(swap).toContain("/etc/fstab")
+
+  const harden = hardenSsh()
+  expect(harden).toContain("PasswordAuthentication no")
+  expect(harden).toContain("PermitRootLogin no")
+})
+
+test("envExports single-quotes a value that itself contains a quote (no bash injection)", () => {
+  const env = envExports({ MSG: "it's fine" })
+  expect(env).toContain(`export MSG='it'\\''s fine'`)
 })
 
 test("zoneLocation maps a zone to its city so pickers are searchable by name", () => {
@@ -353,6 +408,32 @@ test("createArgs adds boot-disk size, network tags, and cloud-init metadata when
   expect(bare.some((a) => a.startsWith("--boot-disk-size"))).toBe(false)
   expect(bare.some((a) => a.startsWith("--tags"))).toBe(false)
   expect(bare.some((a) => a.startsWith("--provisioning-model"))).toBe(false)
+})
+
+test("createArgs emits labels, service account, and scopes when set", () => {
+  const args = createArgs({
+    name: "x", zone: "z", machineType: "e2-micro", imageFamily: "f", imageProject: "p",
+    labels: { env: "prod", team: "core" },
+    serviceAccount: "sa@my-project.iam.gserviceaccount.com",
+    scopes: "cloud-platform",
+  })
+  expect(args).toContain("--labels=env=prod,team=core")
+  expect(args).toContain("--service-account=sa@my-project.iam.gserviceaccount.com")
+  expect(args).toContain("--scopes=cloud-platform")
+})
+
+test("createArgs maps the locked scope sentinel to --no-scopes, omits flags when unset", () => {
+  const locked = createArgs({
+    name: "x", zone: "z", machineType: "m", imageFamily: "f", imageProject: "p", scopes: "no-scopes",
+  })
+  expect(locked).toContain("--no-scopes")
+  expect(locked.some((a) => a.startsWith("--scopes"))).toBe(false)
+
+  const bare = createArgs({ name: "x", zone: "z", machineType: "m", imageFamily: "f", imageProject: "p" })
+  expect(bare.some((a) => a.startsWith("--labels"))).toBe(false)
+  expect(bare.some((a) => a.startsWith("--service-account"))).toBe(false)
+  expect(bare.some((a) => a.startsWith("--scopes"))).toBe(false)
+  expect(bare.some((a) => a.startsWith("--no-scopes"))).toBe(false)
 })
 
 test("createArgs uses custom cpu/memory instead of a machine type when set", () => {

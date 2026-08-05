@@ -88,6 +88,9 @@ export interface CreateInstanceOpts {
   spot?: boolean
   customCpu?: number
   customMemoryGb?: number
+  labels?: Record<string, string>
+  serviceAccount?: string
+  scopes?: string
 }
 
 export function createArgs(opts: CreateInstanceOpts): string[] {
@@ -102,6 +105,15 @@ export function createArgs(opts: CreateInstanceOpts): string[] {
   if (opts.diskType) args.push(`--boot-disk-type=${opts.diskType}`)
   if (opts.spot) args.push("--provisioning-model=SPOT")
   if (opts.tags && opts.tags.length) args.push(`--tags=${opts.tags.join(",")}`)
+  if (opts.labels && Object.keys(opts.labels).length) {
+    const kv = Object.entries(opts.labels).map(([k, v]) => `${k}=${v}`).join(",")
+    args.push(`--labels=${kv}`)
+  }
+  if (opts.serviceAccount) args.push(`--service-account=${opts.serviceAccount}`)
+  if (opts.scopes) {
+    if (opts.scopes === "no-scopes") args.push("--no-scopes")
+    else args.push(`--scopes=${opts.scopes}`)
+  }
   const mff: string[] = []
   if (opts.userDataFile) mff.push(`user-data=${opts.userDataFile}`)
   if (opts.startupScriptFile) mff.push(`startup-script=${opts.startupScriptFile}`)

@@ -4,7 +4,16 @@ import { join } from "path"
 import { getProvider } from "../providers/registry"
 import { getProvisioner } from "../provisioners/registry"
 import type { ProvisionEvent, ProvisioningProfile } from "../provisioners/types"
-import { mergeUserSetup, standaloneUserSetup, type UserSetup } from "../provisioners/usersetup"
+import { userSetupCommands, type UserSetup } from "../provisioners/usersetup"
+import {
+  addSwap,
+  buildFirstBoot,
+  envExports,
+  hardenSsh,
+  installPackages,
+  setHostname,
+  setTimezone,
+} from "../provisioners/firstboot"
 import { cues } from "../audio/cues"
 import type { Instance, LaunchPhase, LaunchStep } from "../domain"
 import { createStore, useStore } from "../lib/store"
@@ -23,20 +32,44 @@ export interface LaunchSpec {
   allowHttp: boolean
   allowHttps: boolean
   spot: boolean
+  labels?: Record<string, string>
+  serviceAccount?: string
+  scopes?: string
+  env?: Record<string, string>
+  packages?: string[]
+  hostname?: string
+  timezone?: string
+  swapMb?: number
+  hardenSsh?: boolean
   provisioning: ProvisioningProfile
   userSetup?: UserSetup
 }
 
-/** Fold an optional login user into the create metadata as a bash startup-script.
- *  Merged ahead of a bash recipe, otherwise it stands alone. */
-function applyUserSetup(extra: Record<string, string>, u: UserSetup) {
-  const key = readFileSync(u.publicKeyPath, "utf8").trim()
-  const existing = extra["startup-script"]
-  const content = existing
-    ? mergeUserSetup(u.username, u.sudo, key, readFileSync(existing, "utf8"))
-    : standaloneUserSetup(u.username, u.sudo, key)
-  const path = join(tmpdir(), `gnd-startup-user-${u.username}`)
-  writeFileSync(path, content)
+/**
+ * Compose every first-boot fragment (login user + setup fields) into one bash
+ * startup-script via buildFirstBoot. When a bash recipe already sits in
+ * extra["startup-script"], the fragments run once ahead of it; otherwise they
+ * stand alone with the completion marker. A #cloud-config recipe stays as
+ * user-data untouched. No-op when there is nothing to add.
+ */
+function applySetup(extra: Record<string, string>, spec: LaunchSpec) {
+  const fragments: string[] = []
+  if (spec.userSetup) {
+    const key = readFileSync(spec.userSetup.publicKeyPath, "utf8").trim()
+    fragments.push(userSetupCommands(spec.userSetup.username, spec.userSetup.sudo, key).join("\n"))
+  }
+  if (spec.env && Object.keys(spec.env).length) fragments.push(envExports(spec.env))
+  if (spec.packages && spec.packages.length) fragments.push(installPackages(spec.packages))
+  if (spec.hostname) fragments.push(setHostname(spec.hostname))
+  if (spec.timezone) fragments.push(setTimezone(spec.timezone))
+  if (spec.swapMb) fragments.push(addSwap(spec.swapMb))
+  if (spec.hardenSsh) fragments.push(hardenSsh())
+
+  if (!fragments.length) return
+  const recipeFile = extra["startup-script"]
+  const recipeBody = recipeFile ? readFileSync(recipeFile, "utf8") : undefined
+  const path = join(tmpdir(), `gnd-startup-${spec.name}`)
+  writeFileSync(path, buildFirstBoot(fragments, recipeBody))
   extra["startup-script"] = path
 }
 
@@ -154,7 +187,7 @@ export async function beginLaunch(spec: LaunchSpec) {
       const { key, value } = provisioner.buildCreatePayload(profile)
       extra[key] = value
     }
-    if (spec.userSetup) applyUserSetup(extra, spec.userSetup)
+    applySetup(extra, spec)
     await getProvider().create({
       name: spec.name,
       region: spec.zone,
@@ -168,6 +201,9 @@ export async function beginLaunch(spec: LaunchSpec) {
       allowHttp: spec.allowHttp,
       allowHttps: spec.allowHttps,
       spot: spec.spot,
+      labels: spec.labels,
+      serviceAccount: spec.serviceAccount,
+      scopes: spec.scopes,
       extra,
     }, appendLog)
     resolveLast("changed")
@@ -181,8 +217,8 @@ export async function beginLaunch(spec: LaunchSpec) {
     const inst = fleetSnapshot().find((s) => s.name === spec.name)
     appendLog(`RUNNING${inst?.externalIp ? ` · ${inst.externalIp}` : ""}`)
 
-    // A recipe or a user-setup script runs at first boot; watch the serial console for it.
-    const injectsStartup = provisioner.injectsAtCreate || Boolean(spec.userSetup)
+    // A recipe or a composed first-boot script runs at first boot; watch the serial console for it.
+    const injectsStartup = provisioner.injectsAtCreate || Boolean(extra["startup-script"])
     if (injectsStartup) {
       pushStep({ name: "run setup (first boot)", role: "provision", state: "running", durationMs: null, detail: null })
       appendLog("reading first-boot output from the serial console…")

@@ -1,8 +1,8 @@
 /**
  * Optional login user created at first boot: a named user, optional passwordless
- * sudo, and an authorized public key. Runs as a bash startup-script, either on
- * its own or merged ahead of a recipe. Every command is idempotent so a reboot
- * re-run is a no-op.
+ * sudo, and an authorized public key. Emitted as a bash fragment that buildFirstBoot
+ * composes into the startup-script. Every command is idempotent so a reboot re-run
+ * is a no-op.
  */
 
 export interface UserSetup {
@@ -35,16 +35,4 @@ export function userSetupCommands(username: string, sudo: boolean, publicKey: st
     `chown -R ${u}:${u} /home/${u}/.ssh`,
   )
   return lines
-}
-
-const SHEBANG = "#!/bin/bash"
-
-/** User setup as its own startup-script, ending with the completion marker. */
-export function standaloneUserSetup(username: string, sudo: boolean, publicKey: string): string {
-  return [SHEBANG, ...userSetupCommands(username, sudo, publicKey), 'echo "GND-PROVISION-DONE"', ""].join("\n")
-}
-
-/** User setup prepended to a bash recipe; the recipe keeps its own guard + marker. */
-export function mergeUserSetup(username: string, sudo: boolean, publicKey: string, recipeBody: string): string {
-  return [SHEBANG, ...userSetupCommands(username, sudo, publicKey), "", recipeBody, ""].join("\n")
 }

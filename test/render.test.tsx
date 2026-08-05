@@ -12,6 +12,7 @@ import { ProjectSwitcher } from "../src/components/ProjectSwitcher"
 import { ProviderSwitcher } from "../src/components/ProviderSwitcher"
 import { SearchModal } from "../src/components/SearchModal"
 import { ToolsModal } from "../src/components/ToolsModal"
+import { Launch } from "../src/screens/Launch"
 import { actionsFor, describeLines } from "../src/state/actions"
 import { confirm, resolveConfirm } from "../src/state/confirm"
 import { showDetail, dismissDetail } from "../src/state/detail"
@@ -216,6 +217,20 @@ test("ToolsModal lists the external dependencies with status", async () => {
     expect(frame).toContain("DEPENDENCIES")
     expect(frame).toContain("gcloud")
     expect(frame).toContain("ssh")
+  } finally {
+    setup.renderer.destroy()
+  }
+})
+
+test("Launch form renders sectioned fields inside a scrollbox", async () => {
+  const setup = await testRender(<Launch />, { width: 80, height: 30 })
+  try {
+    await setup.renderOnce()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("NEW INSTANCE")
+    expect(frame).toContain("BASICS")
+    expect(frame).toContain("NAME")
+    expect(frame).toContain("REVIEW & CREATE")
   } finally {
     setup.renderer.destroy()
   }

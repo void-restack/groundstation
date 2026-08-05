@@ -21,6 +21,9 @@ export interface CreateSpec {
   allowHttp?: boolean
   allowHttps?: boolean
   spot?: boolean
+  labels?: Record<string, string>
+  serviceAccount?: string
+  scopes?: string
   provisioning?: { profileName: string }
   extra?: Record<string, string>
 }

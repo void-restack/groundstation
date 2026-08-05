@@ -148,6 +148,9 @@ export const gcp: Provider = {
       diskSizeGb: spec.diskSizeGb,
       diskType: spec.diskType,
       spot: spec.spot,
+      labels: spec.labels,
+      serviceAccount: spec.serviceAccount,
+      scopes: spec.scopes,
       tags,
     }, onLog)
     return { id: spec.name, name: spec.name }
