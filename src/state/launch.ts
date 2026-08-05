@@ -1,6 +1,10 @@
+import { readFileSync, writeFileSync } from "fs"
+import { tmpdir } from "os"
+import { join } from "path"
 import { getProvider } from "../providers/registry"
 import { getProvisioner } from "../provisioners/registry"
 import type { ProvisionEvent, ProvisioningProfile } from "../provisioners/types"
+import { mergeUserSetup, standaloneUserSetup, type UserSetup } from "../provisioners/usersetup"
 import { cues } from "../audio/cues"
 import type { Instance, LaunchPhase, LaunchStep } from "../domain"
 import { createStore, useStore } from "../lib/store"
@@ -20,6 +24,20 @@ export interface LaunchSpec {
   allowHttps: boolean
   spot: boolean
   provisioning: ProvisioningProfile
+  userSetup?: UserSetup
+}
+
+/** Fold an optional login user into the create metadata as a bash startup-script.
+ *  Merged ahead of a bash recipe, otherwise it stands alone. */
+function applyUserSetup(extra: Record<string, string>, u: UserSetup) {
+  const key = readFileSync(u.publicKeyPath, "utf8").trim()
+  const existing = extra["startup-script"]
+  const content = existing
+    ? mergeUserSetup(u.username, u.sudo, key, readFileSync(existing, "utf8"))
+    : standaloneUserSetup(u.username, u.sudo, key)
+  const path = join(tmpdir(), `gnd-startup-user-${u.username}`)
+  writeFileSync(path, content)
+  extra["startup-script"] = path
 }
 
 interface LaunchState {
@@ -136,6 +154,7 @@ export async function beginLaunch(spec: LaunchSpec) {
       const { key, value } = provisioner.buildCreatePayload(profile)
       extra[key] = value
     }
+    if (spec.userSetup) applyUserSetup(extra, spec.userSetup)
     await getProvider().create({
       name: spec.name,
       region: spec.zone,
@@ -162,37 +181,25 @@ export async function beginLaunch(spec: LaunchSpec) {
     const inst = fleetSnapshot().find((s) => s.name === spec.name)
     appendLog(`RUNNING${inst?.externalIp ? ` · ${inst.externalIp}` : ""}`)
 
-    if (provisioner.injectsAtCreate) {
-      // injected at create, runs at first boot — watch the serial console for it
+    // A recipe or a user-setup script runs at first boot; watch the serial console for it.
+    const injectsStartup = provisioner.injectsAtCreate || Boolean(spec.userSetup)
+    if (injectsStartup) {
       pushStep({ name: "run setup (first boot)", role: "provision", state: "running", durationMs: null, detail: null })
       appendLog("reading first-boot output from the serial console…")
       const done = inst ? await waitBootConfig(inst) : false
       resolveLast(done ? "ok" : "changed", done ? undefined : "still running — watch the output")
-      launch.set((s) => ({ ...s, phase: "succeeded" }))
-      cues.success()
-      logEvent({
-        server: spec.name,
-        level: "ok",
-        message: done ? `${spec.name} ready — setup done` : `${spec.name} running — setup still going`,
-      })
-      return
     }
 
-    if (!provisioner.run) {
-      // none → a bare box is the deliverable
-      launch.set((s) => ({ ...s, phase: "succeeded" }))
-      cues.success()
-      logEvent({ server: spec.name, level: "ok", message: `${spec.name} ready` })
-      return
+    // Shell/command provisioners run over SSH after boot.
+    let ok = true
+    if (provisioner.run) {
+      if (!inst) throw new Error("instance vanished before setup")
+      const ctx = { instance: inst, profile, provider: getProvider() }
+      const tasks = provisioner.plan ? await provisioner.plan(ctx).catch(() => []) : []
+      launch.set((s) => ({ ...s, estTotal: tasks.length + 2 }))
+      ok = await provisioner.run(ctx, onEvent)
     }
 
-    if (!inst) throw new Error("instance vanished before setup")
-    const ctx = { instance: inst, profile, provider: getProvider() }
-
-    const tasks = provisioner.plan ? await provisioner.plan(ctx).catch(() => []) : []
-    launch.set((s) => ({ ...s, estTotal: tasks.length + 2 }))
-
-    const ok = await provisioner.run(ctx, onEvent)
     launch.set((s) => ({ ...s, phase: ok ? "succeeded" : "failed" }))
     if (ok) cues.success()
     else cues.fail()

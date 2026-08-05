@@ -184,3 +184,18 @@ export function detectSshKeys(): string[] {
     .map((e) => join(dir, e))
     .sort()
 }
+
+/** Public keys under ~/.ssh (the `.pub` files), for authorizing a new login user. */
+export function detectPublicKeys(): { path: string; label: string }[] {
+  const dir = join(homedir(), ".ssh")
+  let entries: string[]
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return []
+  }
+  return entries
+    .filter((e) => e.endsWith(".pub"))
+    .map((e) => ({ path: join(dir, e), label: e }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+}

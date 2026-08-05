@@ -1,7 +1,7 @@
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import { listZones } from "../adapters/gcloud"
-import { config } from "../config"
+import { config, detectPublicKeys } from "../config"
 import { zoneLocation } from "../lib/geo"
 import { Field, PickerField } from "../components/Field"
 import { LogView } from "../components/LogView"
@@ -12,13 +12,14 @@ import { duration } from "../lib/format"
 import { getProvider } from "../providers/registry"
 import { TEMPLATES } from "../provisioners/templates"
 import type { ProvisioningProfile } from "../provisioners/types"
+import { validUsername } from "../provisioners/usersetup"
 import { useClock } from "../state/clock"
 import { beginLaunch, launchPhase, resetLaunch, useLaunch, type LaunchSpec } from "../state/launch"
 import { setScreen } from "../state/ui"
 import { glyph, palette } from "../theme"
 
 type Stage = "form" | "review" | "creating"
-type Picker = "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision"
+type Picker = "zone" | "machine" | "image" | "disktype" | "firewall" | "spot" | "provision" | "sudo" | "sshkey"
 type Image = { label: string; family: string; project: string }
 type Firewall = { http: boolean; https: boolean }
 
@@ -31,6 +32,10 @@ const FIREWALLS: { value: Firewall; label: string }[] = [
 const SPOTS: { value: boolean; label: string }[] = [
   { value: false, label: "standard" },
   { value: true, label: "spot (cheap, preemptible)" },
+]
+const SUDO_OPTS: { value: boolean; label: string }[] = [
+  { value: true, label: "yes (passwordless sudo)" },
+  { value: false, label: "no (standard user)" },
 ]
 
 const FALLBACK_ZONES = [
@@ -46,8 +51,8 @@ const IMAGES: Image[] = [
   { label: "ubuntu-24.04-lts", family: "ubuntu-2404-lts", project: "ubuntu-os-cloud" },
 ]
 
-// fields: NAME, ZONE, MACHINE, CUSTOM, IMAGE, DISK, DISK-TYPE, FIREWALL, SPOT, PROVISION, CONTINUE
-const FIELD_COUNT = 11
+// fields: NAME, ZONE, MACHINE, CUSTOM, IMAGE, DISK, DISK-TYPE, FIREWALL, SPOT, PROVISION, USER, SUDO, SSH-KEY, CONTINUE
+const FIELD_COUNT = 14
 
 /** Parse a "cores,GB" (or "cores GB") override into {cpu, memGb}, or null. */
 function parseCustom(s: string): { cpu: number; memGb: number } | null {
@@ -145,6 +150,19 @@ export function Launch() {
   const [firewall, setFirewall] = useState<Firewall>({ http: false, https: false })
   const [spot, setSpot] = useState(false)
   const [provisioning, setProvisioning] = useState<ProvisioningProfile>({ name: "none", kind: "none" })
+  const [user, setUser] = useState("")
+  const [sudo, setSudo] = useState(true)
+  const pubKeyItems = useMemo<SearchItem<string>[]>(
+    () => detectPublicKeys().map((k) => ({ value: k.path, label: k.label })),
+    [],
+  )
+  const [sshKeyPath, setSshKeyPath] = useState<string>(
+    () => pubKeyItems.find((k) => k.label === "google_compute_engine.pub")?.value ?? pubKeyItems[0]?.value ?? "",
+  )
+  const sudoLabel = sudo ? "yes (passwordless sudo)" : "no (standard user)"
+  const sshKeyLabel = pubKeyItems.find((k) => k.value === sshKeyPath)?.label ?? "none"
+  const userValid = !user.trim() || validUsername(user.trim())
+  const userNeedsKey = Boolean(user.trim()) && !sshKeyPath
 
   const [diskTypeItems, setDiskTypeItems] = useState<SearchItem<string>[]>([{ value: "", label: "default (image default)" }])
   const [diskTypesLoading, setDiskTypesLoading] = useState(true)
@@ -274,6 +292,10 @@ export function Launch() {
     allowHttps: firewall.https,
     spot,
     provisioning,
+    userSetup:
+      user.trim() && validUsername(user.trim()) && sshKeyPath
+        ? { username: user.trim(), sudo, publicKeyPath: sshKeyPath }
+        : undefined,
   })
 
   const back = () => {
@@ -282,7 +304,8 @@ export function Launch() {
   }
 
   const proceed = () => {
-    if (name.trim()) setStage("review")
+    if (!name.trim() || !userValid || userNeedsKey) return
+    setStage("review")
   }
 
   const openFocusedPicker = () => {
@@ -293,7 +316,9 @@ export function Launch() {
     else if (focus === 7) setPicker("firewall")
     else if (focus === 8) setPicker("spot")
     else if (focus === 9) setPicker("provision")
-    else proceed() // NAME (0), CUSTOM (3), DISK (5), CONTINUE (10)
+    else if (focus === 11) setPicker("sudo")
+    else if (focus === 12) setPicker("sshkey")
+    else proceed() // NAME (0), CUSTOM (3), DISK (5), USER (10), CONTINUE (13)
   }
 
   useKeyboard((key) => {
@@ -345,12 +370,23 @@ export function Launch() {
           <PickerField label="FIREWALL" value={firewallLabel} focused={focus === 7} />
           <PickerField label="SPOT" value={spotLabel} focused={focus === 8} />
           <PickerField label="PROVISION" value={provisionLabel} focused={focus === 9} />
+          <Field label="USER" focused={focus === 10}>
+            <input focused={focus === 10 && !picker} flexGrow={1} placeholder="optional — create a login user e.g. deploy" onInput={setUser} />
+          </Field>
+          <PickerField label="SUDO" value={user.trim() ? sudoLabel : "—"} focused={focus === 11} />
+          <PickerField label="SSH KEY" value={user.trim() ? sshKeyLabel : "—"} focused={focus === 12} />
 
           <box flexDirection="row" gap={1} marginTop={1}>
-            <text fg={focus === 10 ? palette.ok : palette.muted}>
-              {focus === 10 ? glyph.arrowRight : " "} REVIEW & CREATE
+            <text fg={focus === 13 ? palette.ok : palette.muted}>
+              {focus === 13 ? glyph.arrowRight : " "} REVIEW & CREATE
             </text>
-            {!name.trim() ? <text fg={palette.border}>{glyph.sep} name required</text> : null}
+            {!name.trim() ? (
+              <text fg={palette.border}>{glyph.sep} name required</text>
+            ) : !userValid ? (
+              <text fg={palette.border}>{glyph.sep} user must be a valid linux name</text>
+            ) : userNeedsKey ? (
+              <text fg={palette.border}>{glyph.sep} pick an ssh key for the user</text>
+            ) : null}
           </box>
 
           <text fg={palette.muted} marginTop={1}>
@@ -375,6 +411,9 @@ export function Launch() {
           <text fg={palette.muted}>disk {glyph.arrowRight} <span fg={palette.text}>{disk ? `${disk} GB` : "default"}</span> {diskTypeLabel}</text>
           <text fg={palette.muted}>firewall {glyph.arrowRight} <span fg={palette.text}>{firewallLabel}</span> {glyph.sep} {spotLabel}</text>
           <text fg={palette.muted}>provision {glyph.arrowRight} <span fg={palette.text}>{provisionLabel}</span></text>
+          {spec.userSetup ? (
+            <text fg={palette.muted}>user {glyph.arrowRight} <span fg={palette.text}>{spec.userSetup.username}</span> {sudo ? "(sudo)" : "(no sudo)"} {glyph.sep} key {sshKeyLabel}</text>
+          ) : null}
           <text fg={palette.accent} marginTop={1}>[Enter] create {glyph.sep} [esc] back</text>
         </box>
       )}
@@ -433,6 +472,22 @@ export function Launch() {
           placeholder="none · templates · your files…"
           items={provisionItems}
           onPick={setProvisioning}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "sudo" ? (
+        <SearchModal<boolean>
+          title="SUDO FOR NEW USER"
+          placeholder="passwordless sudo · standard…"
+          items={SUDO_OPTS}
+          onPick={setSudo}
+          onClose={() => setPicker(null)}
+        />
+      ) : picker === "sshkey" ? (
+        <SearchModal<string>
+          title="AUTHORIZE SSH KEY"
+          placeholder={pubKeyItems.length ? "pick a public key…" : "no ~/.ssh/*.pub found"}
+          items={pubKeyItems}
+          onPick={setSshKeyPath}
           onClose={() => setPicker(null)}
         />
       ) : null}

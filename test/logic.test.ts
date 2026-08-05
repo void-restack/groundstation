@@ -12,6 +12,7 @@ import { confirm, resolveConfirm } from "../src/state/confirm"
 import { runOp } from "../src/state/oprunner"
 import { getProvisioner, registeredProvisioners } from "../src/provisioners/registry"
 import { TEMPLATES } from "../src/provisioners/templates"
+import { mergeUserSetup, standaloneUserSetup, userSetupCommands, validUsername } from "../src/provisioners/usersetup"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
@@ -289,6 +290,40 @@ test("cloud-init rejects a missing user-data file with a clear error", () => {
   expect(() =>
     getProvisioner("cloud-init").buildCreatePayload!({ name: "x", kind: "cloud-init", userData: "/no/such/file.yml" }),
   ).toThrow(/not found/)
+})
+
+test("validUsername accepts linux names and rejects bad ones", () => {
+  expect(validUsername("deploy")).toBe(true)
+  expect(validUsername("web_1")).toBe(true)
+  expect(validUsername("1web")).toBe(false)
+  expect(validUsername("bad name")).toBe(false)
+  expect(validUsername("rm;rf")).toBe(false)
+})
+
+test("userSetupCommands creates the user, adds the key, and gates sudo on the flag", () => {
+  const withSudo = userSetupCommands("deploy", true, "ssh-ed25519 AAAA deploy@host").join("\n")
+  expect(withSudo).toContain("useradd -m -s /bin/bash deploy")
+  expect(withSudo).toContain("/etc/sudoers.d/90-gnd-deploy")
+  expect(withSudo).toContain("ssh-ed25519 AAAA deploy@host")
+  expect(withSudo).toContain("authorized_keys")
+
+  const noSudo = userSetupCommands("deploy", false, "ssh-ed25519 AAAA").join("\n")
+  expect(noSudo).not.toContain("sudoers")
+})
+
+test("standaloneUserSetup is a runnable script ending with the done marker", () => {
+  const script = standaloneUserSetup("deploy", true, "ssh-ed25519 AAAA")
+  expect(script.startsWith("#!/bin/bash")).toBe(true)
+  expect(script).toContain("GND-PROVISION-DONE")
+})
+
+test("mergeUserSetup keeps both the user setup and the recipe body", () => {
+  const recipe = TEMPLATES.find((t) => t.id === "docker")!.content
+  const merged = mergeUserSetup("deploy", true, "ssh-ed25519 AAAA", recipe)
+  expect(merged.startsWith("#!/bin/bash")).toBe(true)
+  expect(merged).toContain("useradd -m -s /bin/bash deploy")
+  expect(merged).toContain("docker.io")
+  expect(merged).toContain("GND-PROVISION-DONE")
 })
 
 test("zoneLocation maps a zone to its city so pickers are searchable by name", () => {

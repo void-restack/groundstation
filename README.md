@@ -33,6 +33,7 @@ and no new infrastructure to run. Built with [OpenTUI](https://github.com/sst/op
 ### Set it up on first boot
 
 - Built-in recipes: docker, hardened, base tools, nginx, node, and postgres.
+- Optionally create a login user with a chosen name, sudo rights, and one of your public keys authorized on the box.
 - Or bring your own cloud-init file or shell script.
 - The app waits and streams the setup output until it finishes.
 
